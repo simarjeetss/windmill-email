@@ -352,14 +352,3 @@ $$;
 
 revoke all on function public.email_event_stats(timestamptz, uuid) from public;
 grant execute on function public.email_event_stats(timestamptz, uuid) to authenticated;
-
-
--- ─── 011: Trust Resend webhook opens for webhook-only mode ─
-
-update email_events
-set
-  is_suspected_bot = false,
-  confidence = greatest(confidence, 0.9)
-where event_source = 'resend_webhook'
-  and event_type = 'open'
-  and is_suspected_bot = true;
