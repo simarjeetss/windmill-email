@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { deleteTemplateAttachmentStorageForTemplate, linkOrDuplicateAttachmentsToTemplate } from "@/lib/supabase/template-attachments";
 
 export interface EmailTemplate {
   id: string;
@@ -31,11 +32,12 @@ export async function getAllTemplates(): Promise<{
   return { data: (data ?? []) as EmailTemplate[], error: null };
 }
 
-/** Create a new template */
+/** Create a new template. Optional `attachmentIds` links staged uploads or duplicates files from other templates. */
 export async function createTemplate(
   name: string,
   subject: string,
-  body: string
+  body: string,
+  attachmentIds?: string[]
 ): Promise<{ data: EmailTemplate | null; error: string | null }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -52,7 +54,22 @@ export async function createTemplate(
     .single();
 
   if (error) return { data: null, error: error.message };
-  return { data: data as EmailTemplate, error: null };
+
+  const template = data as EmailTemplate;
+
+  if (attachmentIds?.length) {
+    const { error: linkError } = await linkOrDuplicateAttachmentsToTemplate(
+      template.id,
+      attachmentIds,
+      user.id
+    );
+    if (linkError) {
+      await supabase.from("email_templates").delete().eq("id", template.id).eq("user_id", user.id);
+      return { data: null, error: linkError };
+    }
+  }
+
+  return { data: template, error: null };
 }
 
 /** Update an existing template's name, subject, and body */
@@ -82,13 +99,16 @@ export async function updateTemplate(
   return { data: data as EmailTemplate, error: null };
 }
 
-/** Delete a template */
+/** Delete a template (removes linked attachment files from storage first). */
 export async function deleteTemplate(
   id: string
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  const { error: detachError } = await deleteTemplateAttachmentStorageForTemplate(id, user.id);
+  if (detachError) return { error: detachError };
 
   const { error } = await supabase
     .from("email_templates")

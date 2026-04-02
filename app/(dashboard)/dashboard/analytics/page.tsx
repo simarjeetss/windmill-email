@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { getAnalyticsOverview } from "@/lib/supabase/analytics";
+import { createClient } from "@/lib/supabase/server";
 import {
   buildTimeline,
   calculateCampaignStats,
+  parseEventStats,
   summarizeContacts,
   type SentEmailRow,
 } from "@/lib/analytics/metrics";
@@ -28,10 +30,14 @@ import {
 
 const KPI_DESCRIPTIONS: Record<string, string> = {
   sent: "Total emails sent in the selected window.",
-  opened: "Unique opens tracked via pixel.",
+  delivered: "Unique deliveries to recipient mail servers (Resend webhook).",
+  opened: "Unique opens (trusted — excludes suspected prefetch/bot pixels).",
+  openedRaw: "Unique opens including suspected proxy/prefetch opens.",
   clicked: "Unique link clicks tracked per email.",
-  openRate: "Opens divided by total sent.",
-  clickRate: "Clicks divided by total sent.",
+  openRate: "Trusted opens divided by delivered (or sent if delivery not yet recorded).",
+  openRateRaw: "Raw opens divided by delivered (or sent).",
+  clickRate: "Unique clicks divided by delivered (or sent).",
+  clickToOpenRate: "Unique clicks divided by trusted unique opens.",
 };
 
 function formatPercent(value: string) {
@@ -58,16 +64,25 @@ export default async function AnalyticsPage({
   const rangeDays = Number.isFinite(rawRange)
     ? Math.max(1, Math.min(rawRange, 365))
     : 30;
-  const { campaigns, rows, error } = await getAnalyticsOverview(rangeDays);
   const selectedCampaignId = resolvedSearchParams?.campaign ?? "";
+  const { campaigns, rows, error, eventStats, timelineEvents } = await getAnalyticsOverview(
+    rangeDays,
+    selectedCampaignId || null
+  );
 
   const filteredRows = selectedCampaignId
     ? rows.filter((row) => row.campaign_id === selectedCampaignId)
     : rows;
 
-  const stats = calculateCampaignStats(filteredRows as SentEmailRow[]);
-  const timeline = buildTimeline(filteredRows as SentEmailRow[], rangeDays);
-  const contacts = summarizeContacts(filteredRows as SentEmailRow[]);
+  const rowsForEngagement = filteredRows.map((row) => ({
+    ...(row as SentEmailRow),
+    opened_at: row.opened_at_display,
+    clicked_at: row.clicked_at_display,
+  })) as SentEmailRow[];
+
+  const stats = calculateCampaignStats(rowsForEngagement, eventStats);
+  const timeline = buildTimeline(filteredRows as SentEmailRow[], rangeDays, timelineEvents);
+  const contacts = summarizeContacts(rowsForEngagement);
 
   const emailLogEntries: EmailLogEntry[] = filteredRows.map((row) => {
     const contact = row.contacts as { email?: string | null; first_name?: string | null; last_name?: string | null; company?: string | null } | null;
@@ -83,16 +98,31 @@ export default async function AnalyticsPage({
       campaignName: campaign?.name ?? null,
       status: row.status ?? "pending",
       sentAt: row.sent_at,
-      openedAt: row.opened_at,
-      clickedAt: row.clicked_at,
+      openedAt: row.opened_at_display,
+      clickedAt: row.clicked_at_display,
     };
   });
 
-  const campaignSummaries = campaigns.map((campaign) => {
-    const campaignRows = rows.filter((row) => row.campaign_id === campaign.id);
-    const summary = calculateCampaignStats(campaignRows as SentEmailRow[]);
-    return { ...summary, id: campaign.id, name: campaign.name };
-  });
+  const campaignSummaries = await Promise.all(
+    campaigns.map(async (campaign) => {
+      const campaignRows = rows
+        .filter((row) => row.campaign_id === campaign.id)
+        .map((row) => ({
+          ...(row as SentEmailRow),
+          opened_at: row.opened_at_display,
+          clicked_at: row.clicked_at_display,
+        })) as SentEmailRow[];
+      const supabase = await createClient();
+      const since = new Date();
+      since.setDate(since.getDate() - Math.max(1, Math.min(rangeDays, 365)));
+      const { data: rpcData } = await supabase.rpc("email_event_stats", {
+        p_since: since.toISOString(),
+        p_campaign_id: campaign.id,
+      });
+      const summary = calculateCampaignStats(campaignRows as SentEmailRow[], parseEventStats(rpcData));
+      return { ...summary, id: campaign.id, name: campaign.name };
+    })
+  );
 
   const topCampaign = [...campaignSummaries]
     .filter((summary) => summary.sent > 0)
@@ -233,6 +263,10 @@ export default async function AnalyticsPage({
                 <span style={{ color: "var(--wm-text)" }}>{stats.sent}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
+                <span style={{ color: "var(--wm-text-muted)" }}>Delivered</span>
+                <span style={{ color: "var(--wm-text)" }}>{stats.delivered}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
                 <span style={{ color: "var(--wm-text-muted)" }}>Failed</span>
                 <span style={{ color: "var(--wm-text)" }}>{stats.failed}</span>
               </div>
@@ -256,10 +290,14 @@ export default async function AnalyticsPage({
       <div className="rk-fade-up rk-delay-2 grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
         {[
           { key: "sent", label: "Sent", value: stats.sent },
-          { key: "opened", label: "Opened", value: stats.opened },
-          { key: "clicked", label: "Clicked", value: stats.clicked },
+          { key: "delivered", label: "Delivered", value: stats.delivered },
+          { key: "opened", label: "Opens (trusted)", value: stats.opened },
+          { key: "openedRaw", label: "Opens (raw)", value: stats.openedRaw },
+          { key: "clicked", label: "Clicks", value: stats.clicked },
           { key: "openRate", label: "Open rate", value: formatPercent(stats.openRate) },
+          { key: "openRateRaw", label: "Open rate (raw)", value: formatPercent(stats.openRateRaw) },
           { key: "clickRate", label: "Click rate", value: formatPercent(stats.clickRate) },
+          { key: "clickToOpenRate", label: "CTOR", value: formatPercent(stats.clickToOpenRate) },
         ].map((card) => (
           <Card key={card.key} size="sm">
             <CardHeader className="flex flex-row items-start justify-between">
@@ -295,7 +333,8 @@ export default async function AnalyticsPage({
         <CardHeader>
           <CardTitle>Contact engagement</CardTitle>
           <CardDescription>
-            Per-contact delivery status for the selected campaign.
+            Per-contact delivery status for the selected campaign. Opened counts use trusted opens from
+            analytics events (prefetch/bot pixel loads excluded when detected).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -385,7 +424,8 @@ export default async function AnalyticsPage({
         <CardHeader>
           <CardTitle>Email log</CardTitle>
           <CardDescription>
-            Every email sent — who received it, the subject line, and its delivery &amp; engagement status.
+            Every email sent — who received it, the subject line, and delivery &amp; engagement. Opened
+            times show trusted opens only (same rules as the KPIs above).
           </CardDescription>
         </CardHeader>
         <CardContent>

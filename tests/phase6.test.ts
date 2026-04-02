@@ -62,6 +62,7 @@ describe("analytics metrics", () => {
     expect(stats.failed).toBe(1);
     expect(stats.openRate).toBe("50%");
     expect(stats.clickRate).toBe("50%");
+    expect(stats.delivered).toBeGreaterThanOrEqual(2);
   });
 
   it("builds a timeline with sent/opened/clicked", () => {

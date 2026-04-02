@@ -1,5 +1,6 @@
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
+import { buildClickSignature, buildOpenSignature } from "@/lib/email/tracking";
 
 export type TemplateContext = {
   contact: Contact | null;
@@ -38,12 +39,18 @@ export function toHtml(text: string): string {
   return escapeHtml(text).replace(/\n/g, "<br />");
 }
 
-export function wrapLinksForTracking(text: string, baseUrl: string, sentEmailId: string): string {
+export function wrapLinksForTracking(
+  text: string,
+  baseUrl: string,
+  sentEmailId: string,
+  tsSec: number
+): string {
   if (!baseUrl) return text;
   const normalizedBase = baseUrl.replace(/\/$/, "");
   return text.replace(/(https?:\/\/[^\s)]+)(?=\s|$)/g, (match) => {
     const encoded = encodeURIComponent(match);
-    return `${normalizedBase}/api/track/click/${sentEmailId}?u=${encoded}`;
+    const sig = buildClickSignature(sentEmailId, tsSec, match);
+    return `${normalizedBase}/api/track/click/${sentEmailId}?u=${encoded}&ts=${tsSec}&sig=${encodeURIComponent(sig)}`;
   });
 }
 
@@ -58,9 +65,11 @@ export function buildTrackedEmail(params: {
   const { subject, body, contact, profile, sentEmailId, baseUrl } = params;
   const personalizedSubject = applyTemplate(subject, { contact, profile });
   const personalizedBody = applyTemplate(body, { contact, profile });
-  const trackedBody = wrapLinksForTracking(personalizedBody, baseUrl, sentEmailId);
+  const tsSec = Math.floor(Date.now() / 1000);
+  const trackedBody = wrapLinksForTracking(personalizedBody, baseUrl, sentEmailId, tsSec);
+  const openSig = buildOpenSignature(sentEmailId, tsSec);
   const pixel = baseUrl
-    ? `<img src="${baseUrl.replace(/\/$/, "")}/api/track/open/${sentEmailId}" width="1" height="1" style="display:none" alt="" />`
+    ? `<img src="${baseUrl.replace(/\/$/, "")}/api/track/open/${sentEmailId}?ts=${tsSec}&sig=${encodeURIComponent(openSig)}" width="1" height="1" style="display:none" alt="" />`
     : "";
 
   return {

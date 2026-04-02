@@ -3,6 +3,8 @@
 import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
 import { buildTrackedEmail } from "@/lib/email/templating";
+import { calculateCampaignStats, parseEventStats } from "@/lib/analytics/metrics";
+import { loadAttachmentsForSend } from "@/lib/supabase/template-attachments";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
 
@@ -14,31 +16,55 @@ export type SendCampaignResult = {
 
 export type CampaignStats = {
   sent: number;
+  delivered: number;
   opened: number;
+  openedRaw: number;
   clicked: number;
   openRate: string;
+  openRateRaw: string;
   clickRate: string;
+  clickToOpenRate: string;
 };
 
 export async function getCampaignStats(campaignId: string): Promise<CampaignStats> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("sent_emails")
-    .select("status, opened_at, clicked_at")
+    .select("status, opened_at, clicked_at, delivered_at, campaign_id, contact_id, id, sent_at, created_at")
     .eq("campaign_id", campaignId);
 
   if (error || !data || data.length === 0) {
-    return { sent: 0, opened: 0, clicked: 0, openRate: "—", clickRate: "—" };
+    return {
+      sent: 0,
+      delivered: 0,
+      opened: 0,
+      openedRaw: 0,
+      clicked: 0,
+      openRate: "—",
+      openRateRaw: "—",
+      clickRate: "—",
+      clickToOpenRate: "—",
+    };
   }
 
-  const sent    = data.filter((r) => r.status === "sent").length;
-  const opened  = data.filter((r) => r.opened_at  !== null).length;
-  const clicked = data.filter((r) => r.clicked_at !== null).length;
+  const { data: rpcData, error: rpcError } = await supabase.rpc("email_event_stats", {
+    p_since: new Date(0).toISOString(),
+    p_campaign_id: campaignId,
+  });
+  const eventStats = !rpcError ? parseEventStats(rpcData) : null;
+  const summary = calculateCampaignStats(data, eventStats);
 
-  const openRate  = sent > 0 ? `${Math.round((opened  / sent) * 100)}%` : "—";
-  const clickRate = sent > 0 ? `${Math.round((clicked / sent) * 100)}%` : "—";
-
-  return { sent, opened, clicked, openRate, clickRate };
+  return {
+    sent: summary.sent,
+    delivered: summary.delivered,
+    opened: summary.opened,
+    openedRaw: summary.openedRaw,
+    clicked: summary.clicked,
+    openRate: summary.openRate,
+    openRateRaw: summary.openRateRaw,
+    clickRate: summary.clickRate,
+    clickToOpenRate: summary.clickToOpenRate,
+  };
 }
 
 function getBaseUrl(): string {
@@ -62,7 +88,8 @@ async function getProfileForUser(): Promise<UserProfile | null> {
 export async function sendCampaignNow(
   campaignId: string,
   subject: string,
-  body: string
+  body: string,
+  attachmentIds?: string[]
 ): Promise<SendCampaignResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -72,6 +99,10 @@ export async function sendCampaignNow(
   const trimmedBody = body.trim();
   if (!trimmedSubject) return { sent: 0, failed: 0, error: "Subject is required." };
   if (!trimmedBody) return { sent: 0, failed: 0, error: "Body is required." };
+
+  const ids = attachmentIds?.filter(Boolean) ?? [];
+  const { data: resendAttachments, error: attLoadError } = await loadAttachmentsForSend(ids, user.id);
+  if (attLoadError) return { sent: 0, failed: 0, error: attLoadError };
 
   const profile = await getProfileForUser();
   if (!profile?.full_name) return { sent: 0, failed: 0, error: "Please set your sender profile first." };
@@ -140,6 +171,15 @@ export async function sendCampaignNow(
       subject: tracked.subject,
       html: tracked.html,
       text: tracked.text,
+      // Resend's HTTP client JSON-stringifies the body; Buffer becomes { type, data } which the API rejects.
+      // The API expects attachment content as a Base64 string (see Resend send-email docs).
+      attachments:
+        resendAttachments.length > 0
+          ? resendAttachments.map((a) => ({
+              filename: a.filename,
+              content: a.content.toString("base64"),
+            }))
+          : undefined,
     });
 
     if (error) {

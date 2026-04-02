@@ -55,6 +55,18 @@ vi.mock("@/lib/supabase/email-templates", () => ({
   getAllTemplates:  (...args: unknown[]) => mockGetAllTemplates(...args),
 }));
 
+const mockGetTemplateAttachments = vi.fn().mockResolvedValue({ data: [], error: null });
+
+vi.mock("@/lib/supabase/template-attachments", () => ({
+  uploadTemplateAttachment: vi.fn().mockResolvedValue({ data: null, error: null }),
+  deleteTemplateAttachment: vi.fn().mockResolvedValue({ error: null }),
+  getTemplateAttachments: (...args: unknown[]) => mockGetTemplateAttachments(...args),
+}));
+
+vi.mock("@/lib/supabase/sent-emails", () => ({
+  sendCampaignNow: vi.fn().mockResolvedValue({ sent: 1, failed: 0, error: null }),
+}));
+
 // ─── Static imports (after mocks) ─────────────────────────────────────────────
 
 import EmailComposer from "@/components/campaigns/email-composer";
@@ -215,7 +227,10 @@ describe("createTemplate", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("EmailComposer", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetTemplateAttachments.mockResolvedValue({ data: [], error: null });
+  });
 
   // ── Rendering ─────────────────────────────────────────────────────────────
 
@@ -239,6 +254,11 @@ describe("EmailComposer", () => {
   it("renders Save template button", () => {
     renderComposer();
     expect(screen.getByRole("button", { name: /save template/i })).toBeInTheDocument();
+  });
+
+  it("renders attachment controls", () => {
+    renderComposer();
+    expect(screen.getByRole("button", { name: /add files/i })).toBeInTheDocument();
   });
 
   it("renders Compose and Preview tabs", () => {
