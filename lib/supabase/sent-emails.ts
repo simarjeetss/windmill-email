@@ -171,6 +171,7 @@ export async function sendCampaignNow(
       subject: tracked.subject,
       html: tracked.html,
       text: tracked.text,
+      tags: [{ name: "sent_email_id", value: row.id }],
       // Resend's HTTP client JSON-stringifies the body; Buffer becomes { type, data } which the API rejects.
       // The API expects attachment content as a Base64 string (see Resend send-email docs).
       attachments:

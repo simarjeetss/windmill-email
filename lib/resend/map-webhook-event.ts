@@ -11,7 +11,12 @@ export type ResendWebhookPayload = {
     to?: string[];
     subject?: string;
     bounce?: { message?: string; subType?: string; type?: string };
-    tags?: Record<string, string>;
+    tags?:
+      | Record<string, string>
+      | Array<{
+          name?: string;
+          value?: string;
+        }>;
     [key: string]: unknown;
   };
 };

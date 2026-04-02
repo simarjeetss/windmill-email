@@ -1,6 +1,6 @@
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
-import { buildClickSignature, buildOpenSignature } from "@/lib/email/tracking";
+import { buildClickSignature } from "@/lib/email/tracking";
 
 export type TemplateContext = {
   contact: Contact | null;
@@ -67,14 +67,10 @@ export function buildTrackedEmail(params: {
   const personalizedBody = applyTemplate(body, { contact, profile });
   const tsSec = Math.floor(Date.now() / 1000);
   const trackedBody = wrapLinksForTracking(personalizedBody, baseUrl, sentEmailId, tsSec);
-  const openSig = buildOpenSignature(sentEmailId, tsSec);
-  const pixel = baseUrl
-    ? `<img src="${baseUrl.replace(/\/$/, "")}/api/track/open/${sentEmailId}?ts=${tsSec}&sig=${encodeURIComponent(openSig)}" width="1" height="1" style="display:none" alt="" />`
-    : "";
 
   return {
     subject: personalizedSubject,
     text: trackedBody,
-    html: `${toHtml(trackedBody)}${pixel}`,
+    html: toHtml(trackedBody),
   };
 }

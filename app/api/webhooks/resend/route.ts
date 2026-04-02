@@ -50,11 +50,40 @@ async function upsertSentEmailTimestamps(
       .eq("id", sentId)
       .in("status", ["pending", "sent"]);
   }
-  // Do not set `opened_at` from `email.opened` — provider-reported opens include MPP/prefetch and
-  // duplicate pixel data. Trust only the tracking pixel after bot filtering (see track/open route).
+  if (eventType === "open") {
+    await supabase.from("sent_emails").update({ opened_at: occurredAt }).eq("id", sentId).is("opened_at", null);
+  }
   if (eventType === "click") {
     await supabase.from("sent_emails").update({ clicked_at: occurredAt }).eq("id", sentId).is("clicked_at", null);
   }
+}
+
+function extractSentEmailId(payload: ResendWebhookPayload): string | null {
+  const tags = payload.data?.tags;
+  if (!tags) return null;
+
+  if (Array.isArray(tags)) {
+    for (const tag of tags) {
+      if (
+        typeof tag === "object" &&
+        tag !== null &&
+        "name" in tag &&
+        "value" in tag &&
+        (tag as { name?: unknown }).name === "sent_email_id" &&
+        typeof (tag as { value?: unknown }).value === "string"
+      ) {
+        return (tag as { value: string }).value;
+      }
+    }
+    return null;
+  }
+
+  if (typeof tags === "object" && "sent_email_id" in tags) {
+    const sentEmailId = (tags as Record<string, unknown>).sent_email_id;
+    return typeof sentEmailId === "string" ? sentEmailId : null;
+  }
+
+  return null;
 }
 
 export async function POST(req: Request) {
@@ -95,13 +124,18 @@ export async function POST(req: Request) {
 
   if (payload.type === "email.failed") {
     const emailId = payload.data?.email_id;
-    if (emailId) {
+    const sentEmailId = extractSentEmailId(payload);
+    if (emailId || sentEmailId) {
       const supabase = createAdminClient();
-      await supabase
+      const update = supabase
         .from("sent_emails")
         .update({ status: "failed", error: "Send failed (provider)" })
-        .eq("resend_id", emailId)
         .in("status", ["pending", "sent"]);
+      if (sentEmailId) {
+        await update.eq("id", sentEmailId);
+      } else {
+        await update.eq("resend_id", emailId);
+      }
     }
     return NextResponse.json({ ok: true });
   }
@@ -112,16 +146,32 @@ export async function POST(req: Request) {
   }
 
   const emailId = payload.data?.email_id;
-  if (!emailId) {
-    return NextResponse.json({ ok: true, ignored: true });
-  }
+  const sentEmailId = extractSentEmailId(payload);
+  if (!emailId && !sentEmailId) return NextResponse.json({ ok: true, ignored: true });
 
   const supabase = createAdminClient();
-  const { data: sent, error: findError } = await supabase
-    .from("sent_emails")
-    .select("id, user_id, campaign_id, contact_id")
-    .eq("resend_id", emailId)
-    .maybeSingle();
+  let sent: { id: string; user_id: string; campaign_id: string; contact_id: string } | null = null;
+  let findError: { message?: string } | null = null;
+
+  if (sentEmailId) {
+    const byTag = await supabase
+      .from("sent_emails")
+      .select("id, user_id, campaign_id, contact_id")
+      .eq("id", sentEmailId)
+      .maybeSingle();
+    sent = byTag.data;
+    findError = byTag.error;
+  }
+
+  if (!sent && emailId) {
+    const byProviderId = await supabase
+      .from("sent_emails")
+      .select("id, user_id, campaign_id, contact_id")
+      .eq("resend_id", emailId)
+      .maybeSingle();
+    sent = byProviderId.data;
+    findError = byProviderId.error;
+  }
 
   if (findError || !sent) {
     return NextResponse.json({ ok: true, ignored: true });
@@ -138,7 +188,7 @@ export async function POST(req: Request) {
     event_type: mapped,
     event_source: eventSource,
     occurred_at: occurredAt,
-    provider_message_id: emailId,
+    provider_message_id: emailId ?? null,
     provider_event_id: svixId,
     raw_payload: payload as unknown as Record<string, unknown>,
     is_suspected_bot: mapped === "open",
