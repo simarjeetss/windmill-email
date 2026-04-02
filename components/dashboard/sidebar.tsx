@@ -67,24 +67,28 @@ export default function DashboardSidebar({ user }: { user: User }) {
         className="flex items-center gap-2 px-6 h-16 shrink-0"
         style={{ borderBottom: "1px solid var(--wm-border)" }}
       >
-        <Link href="/dashboard" className="flex items-center gap-2">
-          {/* Mini turbine icon */}
-          <svg width="20" height="20" viewBox="0 0 48 48" fill="none" style={{ color: "var(--wm-accent)" }}>
+        <Link href="/dashboard" className="flex items-center">
+          {/* Mini turbine icon with spinning blades */}
+          <svg width="28" height="28" viewBox="0 0 48 48" fill="none" style={{ color: "var(--wm-accent)" }}>
             <line x1="24" y1="24" x2="24" y2="46" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
             <circle cx="24" cy="24" r="3" fill="currentColor" />
-            <g style={{ transformOrigin: "24px 24px" }}>
+            <g className="windmill-blades">
               <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" />
               <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" transform="rotate(120 24 24)" />
               <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" transform="rotate(240 24 24)" />
             </g>
           </svg>
-          <span
-            className="text-[15px] font-semibold tracking-tight"
-            style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
-          >
-            Windmill
-          </span>
         </Link>
+        <style jsx>{`
+          .windmill-blades {
+            transform-origin: 24px 24px;
+            animation: spin-blades 4s linear infinite;
+          }
+          @keyframes spin-blades {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
 
       {/* Nav */}
