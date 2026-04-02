@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
+import type { UserProfile } from "@/lib/supabase/profile";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import UserPanel from "@/components/dashboard/user-panel";
@@ -14,7 +15,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/analytics", label: "Analytics" },
 ];
 
-export default function DashboardTopbar({ user }: { user: User }) {
+export default function DashboardTopbar({ user, profile }: { user: User; profile: UserProfile | null }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -112,7 +113,7 @@ export default function DashboardTopbar({ user }: { user: User }) {
         <span className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
           Good day,{" "}
           <span style={{ color: "var(--wm-text)" }}>
-            {user.email?.split("@")[0]}
+            {profile?.full_name || user.email?.split("@")[0]}
           </span>
         </span>
       </div>

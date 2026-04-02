@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
+import type { UserProfile } from "@/lib/supabase/profile";
 
 const NAV_ITEMS = [
   {
@@ -50,7 +51,7 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function DashboardSidebar({ user }: { user: User }) {
+export default function DashboardSidebar({ user, profile }: { user: User; profile: UserProfile | null }) {
   const pathname = usePathname();
 
   return (
@@ -137,7 +138,7 @@ export default function DashboardSidebar({ user }: { user: User }) {
           className="text-xs font-medium truncate mb-0.5"
           style={{ color: "var(--wm-text)" }}
         >
-          {user.email?.split("@")[0]}
+          {profile?.full_name || user.email?.split("@")[0]}
         </div>
         <div className="text-[11px] truncate" style={{ color: "var(--wm-text-sub)" }}>
           {user.email}

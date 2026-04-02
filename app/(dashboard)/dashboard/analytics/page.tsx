@@ -9,6 +9,8 @@ import {
 import EngagementTrend from "@/components/analytics/engagement-trend";
 import AnalyticsFilters from "@/components/analytics/analytics-filters";
 import AnalyticsRangeSelector from "@/components/analytics/analytics-range-selector";
+import EmailLog from "@/components/analytics/email-log";
+import type { EmailLogEntry } from "@/components/analytics/email-log";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -66,6 +68,25 @@ export default async function AnalyticsPage({
   const stats = calculateCampaignStats(filteredRows as SentEmailRow[]);
   const timeline = buildTimeline(filteredRows as SentEmailRow[], rangeDays);
   const contacts = summarizeContacts(filteredRows as SentEmailRow[]);
+
+  const emailLogEntries: EmailLogEntry[] = filteredRows.map((row) => {
+    const contact = row.contacts as { email?: string | null; first_name?: string | null; last_name?: string | null; company?: string | null } | null;
+    const campaign = row.campaigns as { name?: string | null } | null;
+    const name = [contact?.first_name, contact?.last_name].filter(Boolean).join(" ").trim();
+    return {
+      id: row.id,
+      subject: row.subject ?? "",
+      body: row.body ?? "",
+      recipientName: name || contact?.email || "Unknown",
+      recipientEmail: contact?.email ?? "—",
+      recipientCompany: contact?.company ?? null,
+      campaignName: campaign?.name ?? null,
+      status: row.status ?? "pending",
+      sentAt: row.sent_at,
+      openedAt: row.opened_at,
+      clickedAt: row.clicked_at,
+    };
+  });
 
   const campaignSummaries = campaigns.map((campaign) => {
     const campaignRows = rows.filter((row) => row.campaign_id === campaign.id);
@@ -356,6 +377,19 @@ export default async function AnalyticsPage({
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Email log — comprehensive per-email detail ──────────────────── */}
+      <Card className="rk-fade-up rk-delay-4 mt-8" size="sm">
+        <CardHeader>
+          <CardTitle>Email log</CardTitle>
+          <CardDescription>
+            Every email sent — who received it, the subject line, and its delivery &amp; engagement status.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmailLog entries={emailLogEntries} />
         </CardContent>
       </Card>
     </div>
