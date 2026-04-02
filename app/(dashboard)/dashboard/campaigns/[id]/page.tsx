@@ -80,10 +80,11 @@ export default async function CampaignDetailPage({
       </div>
 
       {/* Stats strip */}
-      <div className="rk-fade-up rk-delay-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
+      <div className="rk-fade-up rk-delay-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
         {[
           { label: "Contacts",   value: contacts.length },
           { label: "Sent",       value: stats.sent },
+          { label: "Delivered",  value: stats.delivered },
           { label: "Opened",     value: stats.opened },
           { label: "Open Rate",  value: stats.openRate },
           { label: "Click Rate", value: stats.clickRate },

@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { getAllTemplates, deleteTemplate } from "@/lib/supabase/email-templates";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
+import type { TemplateAttachment } from "@/lib/supabase/template-attachments.types";
+import { getTemplateAttachments } from "@/lib/supabase/template-attachments";
 
 interface TemplateLibraryProps {
-  onLoad: (subject: string, body: string) => void;
+  onLoad: (template: EmailTemplate, attachments: TemplateAttachment[]) => void;
 }
 
 export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
@@ -47,8 +49,13 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
     );
   });
 
-  function handleLoad(t: EmailTemplate) {
-    onLoad(t.subject, t.body);
+  async function handleLoad(t: EmailTemplate) {
+    const { data, error: attErr } = await getTemplateAttachments(t.id);
+    if (attErr) {
+      setError(attErr);
+      return;
+    }
+    onLoad(t, data ?? []);
     closeLibrary();
   }
 

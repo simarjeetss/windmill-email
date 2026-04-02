@@ -6,6 +6,7 @@ export type SentEmailRow = {
   sent_at: string | null;
   opened_at: string | null;
   clicked_at: string | null;
+  delivered_at?: string | null;
   created_at: string;
   contacts?: {
     email?: string | null;
@@ -15,13 +16,31 @@ export type SentEmailRow = {
   } | null;
 };
 
+/** Rows from `email_events` for timeline bucketing */
+export type EmailEventTimelineRow = {
+  event_type: string;
+  occurred_at: string;
+  is_suspected_bot: boolean;
+};
+
+export type EventStatsBundle = {
+  delivered_unique: number;
+  open_unique_raw: number;
+  open_unique_trusted: number;
+  click_unique: number;
+};
+
 export type CampaignStatsSummary = {
   sent: number;
+  delivered: number;
   opened: number;
+  openedRaw: number;
   clicked: number;
   failed: number;
   openRate: string;
+  openRateRaw: string;
   clickRate: string;
+  clickToOpenRate: string;
 };
 
 export type TimelinePoint = {
@@ -50,6 +69,56 @@ function formatRate(numerator: number, denominator: number): string {
   return `${Math.round((numerator / denominator) * 100)}%`;
 }
 
+export function parseEventStats(data: unknown): EventStatsBundle | null {
+  if (!data || typeof data !== "object") return null;
+  const o = data as Record<string, unknown>;
+  return {
+    delivered_unique: Number(o.delivered_unique ?? 0),
+    open_unique_raw: Number(o.open_unique_raw ?? 0),
+    open_unique_trusted: Number(o.open_unique_trusted ?? 0),
+    click_unique: Number(o.click_unique ?? 0),
+  };
+}
+
+/** Prefer webhook-backed delivered count; fall back to sent rows. */
+export function rateDenominator(sent: number, delivered: number): number {
+  if (delivered > 0) return delivered;
+  return sent;
+}
+
+/** Minimal row from `email_events` for per-send engagement display */
+export type EmailEventEngagementRow = {
+  event_type: string;
+  occurred_at: string;
+  is_suspected_bot: boolean;
+};
+
+function minIso(timestamps: string[]): string {
+  return timestamps.reduce((a, b) => (a < b ? a : b));
+}
+
+/**
+ * Derive UI open/click times from `email_events` when present.
+ * If any events exist for this send, trusted opens exclude `is_suspected_bot`; otherwise fall back to `sent_emails` columns (legacy).
+ */
+export function buildEngagementDisplayFromEvents(
+  row: { opened_at: string | null; clicked_at: string | null },
+  events: EmailEventEngagementRow[] | undefined
+): { opened_at_display: string | null; clicked_at_display: string | null } {
+  if (!events || events.length === 0) {
+    return {
+      opened_at_display: row.opened_at,
+      clicked_at_display: row.clicked_at,
+    };
+  }
+  const trustedOpens = events.filter((e) => e.event_type === "open" && !e.is_suspected_bot);
+  const clicks = events.filter((e) => e.event_type === "click");
+  return {
+    opened_at_display: trustedOpens.length ? minIso(trustedOpens.map((e) => e.occurred_at)) : null,
+    clicked_at_display: clicks.length ? minIso(clicks.map((e) => e.occurred_at)) : null,
+  };
+}
+
 function getDateKey(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
@@ -61,23 +130,52 @@ function isWithinRange(dateKey: string, startKey: string, endKey: string): boole
   return dateKey >= startKey && dateKey <= endKey;
 }
 
-export function calculateCampaignStats(rows: SentEmailRow[]): CampaignStatsSummary {
+export function calculateCampaignStats(
+  rows: SentEmailRow[],
+  eventStats?: EventStatsBundle | null
+): CampaignStatsSummary {
   const sent = rows.filter((row) => row.status === "sent").length;
-  const opened = rows.filter((row) => Boolean(row.opened_at)).length;
-  const clicked = rows.filter((row) => Boolean(row.clicked_at)).length;
   const failed = rows.filter((row) => row.status === "failed").length;
+
+  const legacyOpened = rows.filter((row) => Boolean(row.opened_at)).length;
+  const legacyClicked = rows.filter((row) => Boolean(row.clicked_at)).length;
+  const legacyDelivered = rows.filter((row) => Boolean(row.delivered_at)).length;
+
+  const es = eventStats ?? null;
+  const hasEventData = Boolean(
+    es &&
+      (es.delivered_unique > 0 ||
+        es.open_unique_raw > 0 ||
+        es.open_unique_trusted > 0 ||
+        es.click_unique > 0)
+  );
+
+  const openedRaw = hasEventData && es ? es.open_unique_raw : legacyOpened;
+  const openedTrusted = hasEventData && es ? es.open_unique_trusted : legacyOpened;
+  const clicked = hasEventData && es ? es.click_unique : legacyClicked;
+  const delivered = hasEventData && es ? Math.max(es.delivered_unique, legacyDelivered) : Math.max(legacyDelivered, sent);
+
+  const denom = rateDenominator(sent, delivered);
 
   return {
     sent,
-    opened,
+    delivered,
+    opened: openedTrusted,
+    openedRaw,
     clicked,
     failed,
-    openRate: formatRate(opened, sent),
-    clickRate: formatRate(clicked, sent),
+    openRate: formatRate(openedTrusted, denom),
+    openRateRaw: formatRate(openedRaw, denom),
+    clickRate: formatRate(clicked, denom),
+    clickToOpenRate: openedTrusted > 0 ? formatRate(clicked, openedTrusted) : "—",
   };
 }
 
-export function buildTimeline(rows: SentEmailRow[], rangeDays: number): TimelinePoint[] {
+export function buildTimeline(
+  rows: SentEmailRow[],
+  rangeDays: number,
+  events?: EmailEventTimelineRow[]
+): TimelinePoint[] {
   const days = Math.max(1, Math.min(rangeDays, 365));
   const endDate = new Date();
   endDate.setHours(0, 0, 0, 0);
@@ -106,12 +204,26 @@ export function buildTimeline(rows: SentEmailRow[], rangeDays: number): Timeline
 
   rows.forEach((row) => {
     increment(row.sent_at ?? row.created_at, "sent");
-    increment(row.opened_at, "opened");
-    increment(row.clicked_at, "clicked");
     if (row.status === "failed") {
       increment(row.sent_at ?? row.created_at, "failed");
     }
   });
+
+  if (events && events.length > 0) {
+    events.forEach((ev) => {
+      if (ev.event_type === "open" && !ev.is_suspected_bot) {
+        increment(ev.occurred_at, "opened");
+      }
+      if (ev.event_type === "click") {
+        increment(ev.occurred_at, "clicked");
+      }
+    });
+  } else {
+    rows.forEach((row) => {
+      increment(row.opened_at, "opened");
+      increment(row.clicked_at, "clicked");
+    });
+  }
 
   return Array.from(buckets.values());
 }

@@ -3,6 +3,15 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { createTemplate } from "@/lib/supabase/email-templates";
 import { sendCampaignNow } from "@/lib/supabase/sent-emails";
+import {
+  MAX_TEMPLATE_ATTACHMENTS,
+  type TemplateAttachment,
+} from "@/lib/supabase/template-attachments.types";
+import {
+  uploadTemplateAttachment,
+  deleteTemplateAttachment,
+  getTemplateAttachments,
+} from "@/lib/supabase/template-attachments";
 import { generateEmailWithAI } from "@/lib/ai/generate-email";
 import { polishEmailWithAI } from "@/lib/ai/polish-email";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
@@ -84,6 +93,14 @@ export default function EmailComposer({
   const [sendStatus, setSendStatus] = useState<"idle" | "sent" | "error">("idle");
   const [sendSummary, setSendSummary] = useState<{ sent: number; failed: number } | null>(null);
 
+  /** Files linked to the current draft (saved template and/or staged uploads). */
+  const [attachments, setAttachments] = useState<TemplateAttachment[]>([]);
+  const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null);
+  const [savedAttachSig, setSavedAttachSig] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachError, setAttachError] = useState("");
+  const [isUploadingAttach, setIsUploadingAttach] = useState(false);
+
   // AI rate-limit upgrade modal
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -96,9 +113,11 @@ export default function EmailComposer({
   }, [showSaveModal]);
 
   const previewContact  = previewContacts[previewIdx] ?? null;
+  const attachSig = attachments.map((a) => a.id).sort().join(",");
   const isDirty =
     subject !== savedSubject ||
-    body    !== savedBody;
+    body !== savedBody ||
+    attachSig !== savedAttachSig;
 
   const senderName    = profile?.full_name || null;
   const senderCompany = profile?.company   || null;
@@ -138,12 +157,25 @@ export default function EmailComposer({
     if (!templateName.trim()) { setSaveModalError("Please enter a name for this template."); return; }
     setSaveModalError("");
     startSave(async () => {
-      const { error } = await createTemplate(templateName.trim(), subject, body);
+      const { data: created, error } = await createTemplate(
+        templateName.trim(),
+        subject,
+        body,
+        attachments.map((a) => a.id)
+      );
       if (error) { setSaveModalError(error); return; }
       setShowSaveModal(false);
       setSaveStatus("saved");
       setSavedSubject(subject);
       setSavedBody(body);
+      if (created) {
+        setLoadedTemplateId(created.id);
+        const { data: refreshed } = await getTemplateAttachments(created.id);
+        setAttachments(refreshed ?? []);
+        setSavedAttachSig((refreshed ?? []).map((a) => a.id).sort().join(","));
+      } else {
+        setSavedAttachSig(attachSig);
+      }
     });
   }
 
@@ -174,7 +206,12 @@ export default function EmailComposer({
   function handleConfirmSend() {
     setSendError("");
     startSend(async () => {
-      const result = await sendCampaignNow(campaignId, subject, body);
+      const result = await sendCampaignNow(
+        campaignId,
+        subject,
+        body,
+        attachments.map((a) => a.id)
+      );
       if (result.error) {
         setSendStatus("error");
         setSendError(result.error);
@@ -188,19 +225,75 @@ export default function EmailComposer({
       setBody("");
       setSavedSubject("");
       setSavedBody("");
+      setAttachments([]);
+      setLoadedTemplateId(null);
+      setSavedAttachSig("");
       setSaveStatus("idle");
     });
   }
 
-  function handleLoadTemplate(newSubject: string, newBody: string) {
-    setSubject(newSubject);
-    setBody(newBody);
+  function handleLoadTemplate(template: EmailTemplate, templateAttachments: TemplateAttachment[]) {
+    setSubject(template.subject);
+    setBody(template.body);
+    setAttachments(templateAttachments);
+    setLoadedTemplateId(template.id);
+    setSavedAttachSig(templateAttachments.map((a) => a.id).sort().join(","));
+    setSavedSubject(template.subject);
+    setSavedBody(template.body);
     setSaveStatus("idle");
     setSendStatus("idle");
     setSendError("");
+    setAttachError("");
     setTab("compose");
-    // Brief flash so the user sees the content loaded
     setTimeout(() => bodyRef.current?.focus(), 80);
+  }
+
+  async function handleAttachmentFiles(fileList: FileList | null) {
+    if (!fileList?.length) return;
+    setAttachError("");
+    setIsUploadingAttach(true);
+    try {
+      for (const file of Array.from(fileList)) {
+        if (attachments.length >= MAX_TEMPLATE_ATTACHMENTS) {
+          setAttachError(`You can attach up to ${MAX_TEMPLATE_ATTACHMENTS} files.`);
+          break;
+        }
+        const fd = new FormData();
+        fd.append("file", file);
+        if (loadedTemplateId) fd.append("templateId", loadedTemplateId);
+        const { data, error } = await uploadTemplateAttachment(fd);
+        if (error) {
+          setAttachError(error);
+          break;
+        }
+        if (data) {
+          setAttachments((prev) => [...prev, data]);
+          setSaveStatus("idle");
+          setSendStatus("idle");
+        }
+      }
+    } finally {
+      setIsUploadingAttach(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemoveAttachment(id: string) {
+    setAttachError("");
+    const { error } = await deleteTemplateAttachment(id);
+    if (error) {
+      setAttachError(error);
+      return;
+    }
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+    setSaveStatus("idle");
+    setSendStatus("idle");
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   function handleGenerate() {
@@ -225,6 +318,9 @@ export default function EmailComposer({
       }
       setSubject(result.subject);
       setBody(result.body);
+      setAttachments([]);
+      setLoadedTemplateId(null);
+      setSavedAttachSig("");
       setSaveStatus("idle");
       setSendStatus("idle");
     });
@@ -513,6 +609,12 @@ export default function EmailComposer({
 
             <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
               This will send to <strong style={{ color: "var(--wm-text)" }}>{previewContacts.length}</strong> contact{previewContacts.length === 1 ? "" : "s"}.
+              {attachments.length > 0 && (
+                <span>
+                  {" "}
+                  with <strong style={{ color: "var(--wm-text)" }}>{attachments.length}</strong> attachment{attachments.length === 1 ? "" : "s"}.
+                </span>
+              )}
             </div>
 
             <div
@@ -798,6 +900,74 @@ export default function EmailComposer({
                 {subject.length}/60
               </span>
             </div>
+          </div>
+
+          {/* Attachments (stored with templates; included when sending) */}
+          <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--wm-border)" }}>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="text-[10px] uppercase tracking-widest shrink-0" style={{ color: "var(--wm-text-sub)" }}>
+                Attachments
+              </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                multiple
+                onChange={(e) => { void handleAttachmentFiles(e.target.files); }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingAttach || attachments.length >= MAX_TEMPLATE_ATTACHMENTS}
+                className="text-[11px] px-2.5 py-1 rounded-lg transition-colors"
+                style={{
+                  background: "var(--wm-surface-2)",
+                  border: "1px solid var(--wm-border)",
+                  color: "var(--wm-text-muted)",
+                  cursor: isUploadingAttach || attachments.length >= MAX_TEMPLATE_ATTACHMENTS ? "not-allowed" : "pointer",
+                  opacity: attachments.length >= MAX_TEMPLATE_ATTACHMENTS ? 0.5 : 1,
+                }}
+              >
+                {isUploadingAttach ? "Uploading…" : "Add files"}
+              </button>
+              <span className="text-[10px]" style={{ color: "var(--wm-text-sub)" }}>
+                {attachments.length}/{MAX_TEMPLATE_ATTACHMENTS} · max 10 MB each
+              </span>
+            </div>
+            {attachError && (
+              <p className="text-[11px] mb-2" style={{ color: "#f87171" }}>{attachError}</p>
+            )}
+            {attachments.length > 0 && (
+              <ul className="space-y-1.5">
+                {attachments.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex items-center justify-between gap-2 text-xs rounded-lg px-2.5 py-1.5"
+                    style={{ background: "var(--wm-bg)", border: "1px solid var(--wm-border)" }}
+                  >
+                    <span className="truncate font-medium" style={{ color: "var(--wm-text-muted)" }} title={a.file_name}>
+                      {a.file_name}
+                    </span>
+                    <span className="shrink-0 text-[10px]" style={{ color: "var(--wm-text-sub)" }}>
+                      {formatFileSize(a.file_size)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { void handleRemoveAttachment(a.id); }}
+                      className="shrink-0 text-[10px] px-1.5 py-0.5 rounded"
+                      style={{
+                        background: "rgba(239,68,68,0.08)",
+                        border: "1px solid rgba(239,68,68,0.2)",
+                        color: "#f87171",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* Body */}

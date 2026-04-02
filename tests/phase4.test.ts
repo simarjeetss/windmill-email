@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { applyTemplate, wrapLinksForTracking, buildTrackedEmail } from "@/lib/email/templating";
+
+beforeAll(() => {
+  process.env.TRACKING_SECRET = "test-tracking-secret-for-vitest";
+});
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
 
@@ -32,8 +36,11 @@ describe("templating helpers", () => {
 
   it("wraps links with tracking", () => {
     const body = "Visit https://example.com and http://example.org";
-    const tracked = wrapLinksForTracking(body, "https://app.test", "sent-1");
+    const tsSec = 1_700_000_000;
+    const tracked = wrapLinksForTracking(body, "https://app.test", "sent-1", tsSec);
     expect(tracked).toContain("/api/track/click/sent-1?u=");
+    expect(tracked).toContain("&ts=");
+    expect(tracked).toContain("&sig=");
   });
 
   it("builds tracked html with pixel", () => {
@@ -47,5 +54,7 @@ describe("templating helpers", () => {
     });
     expect(email.subject).toContain("Hello Alice");
     expect(email.html).toContain("/api/track/open/sent-2");
+    expect(email.html).toContain("ts=");
+    expect(email.html).toContain("sig=");
   });
 });

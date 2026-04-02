@@ -1,5 +1,7 @@
 "use server";
 
+import type { EmailEventTimelineRow, EventStatsBundle, SentEmailRow } from "@/lib/analytics/metrics";
+import { buildEngagementDisplayFromEvents, calculateCampaignStats, parseEventStats } from "@/lib/analytics/metrics";
 import { createClient } from "@/lib/supabase/server";
 
 export type AnalyticsCampaign = {
@@ -18,6 +20,10 @@ export type AnalyticsRow = {
   sent_at: string | null;
   opened_at: string | null;
   clicked_at: string | null;
+  /** Trusted open / click times from `email_events` when available (UI should use these) */
+  opened_at_display: string | null;
+  clicked_at_display: string | null;
+  delivered_at?: string | null;
   created_at: string;
   contacts?: {
     email?: string | null;
@@ -34,15 +40,22 @@ export type AnalyticsOverview = {
   campaigns: AnalyticsCampaign[];
   rows: AnalyticsRow[];
   error: string | null;
+  /** Aggregates for the selected campaign (or all if none), matching `rangeDays` */
+  eventStats: EventStatsBundle | null;
+  timelineEvents: EmailEventTimelineRow[];
 };
 
 export type OverviewStats = {
   sent: number;
+  delivered: number;
   opened: number;
+  openedRaw: number;
   clicked: number;
   failed: number;
   openRate: string;
+  openRateRaw: string;
   clickRate: string;
+  clickToOpenRate: string;
 };
 
 export type RecentActivity = {
@@ -56,10 +69,15 @@ export type RecentActivity = {
   campaign_name: string | null;
 };
 
-export async function getAnalyticsOverview(rangeDays: number): Promise<AnalyticsOverview> {
+export async function getAnalyticsOverview(
+  rangeDays: number,
+  campaignId?: string | null
+): Promise<AnalyticsOverview> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { campaigns: [], rows: [], error: "Not authenticated" };
+  if (!user) {
+    return { campaigns: [], rows: [], error: "Not authenticated", eventStats: null, timelineEvents: [] };
+  }
 
   const { data: campaigns, error: campaignsError } = await supabase
     .from("campaigns")
@@ -67,7 +85,9 @@ export async function getAnalyticsOverview(rangeDays: number): Promise<Analytics
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (campaignsError) return { campaigns: [], rows: [], error: campaignsError.message };
+  if (campaignsError) {
+    return { campaigns: [], rows: [], error: campaignsError.message, eventStats: null, timelineEvents: [] };
+  }
 
   const since = new Date();
   since.setDate(since.getDate() - Math.max(1, Math.min(rangeDays, 365)));
@@ -75,54 +95,137 @@ export async function getAnalyticsOverview(rangeDays: number): Promise<Analytics
   const { data: rows, error: rowsError } = await supabase
     .from("sent_emails")
     .select(
-      "id, campaign_id, contact_id, status, subject, body, sent_at, opened_at, clicked_at, created_at, contacts(email, first_name, last_name, company), campaigns(name)"
+      "id, campaign_id, contact_id, status, subject, body, sent_at, opened_at, clicked_at, delivered_at, created_at, contacts(email, first_name, last_name, company), campaigns(name)"
     )
     .eq("user_id", user.id)
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: false });
 
-  if (rowsError) return { campaigns: campaigns ?? [], rows: [], error: rowsError.message };
+  if (rowsError) {
+    return { campaigns: campaigns ?? [], rows: [], error: rowsError.message, eventStats: null, timelineEvents: [] };
+  }
+
+  const list = rows ?? [];
+  const sentIds = list.map((r) => r.id).filter(Boolean);
+  const eventsBySent = new Map<
+    string,
+    Array<{ event_type: string; occurred_at: string; is_suspected_bot: boolean }>
+  >();
+
+  if (sentIds.length > 0) {
+    const { data: engagementEv } = await supabase
+      .from("email_events")
+      .select("sent_email_id, event_type, occurred_at, is_suspected_bot")
+      .eq("user_id", user.id)
+      .in("sent_email_id", sentIds);
+
+    for (const e of engagementEv ?? []) {
+      const sid = e.sent_email_id as string | null;
+      if (!sid) continue;
+      if (!eventsBySent.has(sid)) eventsBySent.set(sid, []);
+      eventsBySent.get(sid)!.push({
+        event_type: e.event_type as string,
+        occurred_at: e.occurred_at as string,
+        is_suspected_bot: Boolean(e.is_suspected_bot),
+      });
+    }
+  }
+
+  const enrichedRows = list.map((row) => {
+    const evs = eventsBySent.get(row.id) ?? [];
+    const display = buildEngagementDisplayFromEvents(row, evs);
+    return {
+      ...row,
+      opened_at_display: display.opened_at_display,
+      clicked_at_display: display.clicked_at_display,
+    };
+  });
+
+  let eventStats: EventStatsBundle | null = null;
+  const { data: rpcData, error: rpcError } = await supabase.rpc("email_event_stats", {
+    p_since: since.toISOString(),
+    p_campaign_id: campaignId || null,
+  });
+  if (!rpcError) {
+    eventStats = parseEventStats(rpcData);
+  }
+
+  let timelineQuery = supabase
+    .from("email_events")
+    .select("event_type, occurred_at, is_suspected_bot")
+    .eq("user_id", user.id)
+    .gte("occurred_at", since.toISOString());
+  if (campaignId) {
+    timelineQuery = timelineQuery.eq("campaign_id", campaignId);
+  }
+  const { data: evRows } = await timelineQuery.order("occurred_at", { ascending: true });
 
   return {
     campaigns: (campaigns ?? []) as AnalyticsCampaign[],
-    rows: (rows ?? []) as AnalyticsRow[],
+    rows: enrichedRows as AnalyticsRow[],
     error: null,
+    eventStats,
+    timelineEvents: (evRows ?? []) as EmailEventTimelineRow[],
   };
-}
-
-function formatRate(numerator: number, denominator: number) {
-  if (!denominator) return "—";
-  return `${Math.round((numerator / denominator) * 100)}%`;
 }
 
 export async function getOverviewStats(): Promise<OverviewStats> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return { sent: 0, opened: 0, clicked: 0, failed: 0, openRate: "—", clickRate: "—" };
+    return {
+      sent: 0,
+      delivered: 0,
+      opened: 0,
+      openedRaw: 0,
+      clicked: 0,
+      failed: 0,
+      openRate: "—",
+      openRateRaw: "—",
+      clickRate: "—",
+      clickToOpenRate: "—",
+    };
   }
 
   const { data, error } = await supabase
     .from("sent_emails")
-    .select("status, opened_at, clicked_at")
+    .select("status, opened_at, clicked_at, delivered_at, campaign_id, contact_id, id, sent_at, created_at")
     .eq("user_id", user.id);
 
   if (error || !data) {
-    return { sent: 0, opened: 0, clicked: 0, failed: 0, openRate: "—", clickRate: "—" };
+    return {
+      sent: 0,
+      delivered: 0,
+      opened: 0,
+      openedRaw: 0,
+      clicked: 0,
+      failed: 0,
+      openRate: "—",
+      openRateRaw: "—",
+      clickRate: "—",
+      clickToOpenRate: "—",
+    };
   }
 
-  const sent = data.filter((row) => row.status === "sent").length;
-  const opened = data.filter((row) => row.opened_at).length;
-  const clicked = data.filter((row) => row.clicked_at).length;
-  const failed = data.filter((row) => row.status === "failed").length;
+  const { data: rpcData, error: rpcError } = await supabase.rpc("email_event_stats", {
+    p_since: new Date(0).toISOString(),
+    p_campaign_id: null,
+  });
+  const eventStats = !rpcError ? parseEventStats(rpcData) : null;
+
+  const summary = calculateCampaignStats(data as SentEmailRow[], eventStats);
 
   return {
-    sent,
-    opened,
-    clicked,
-    failed,
-    openRate: formatRate(opened, sent),
-    clickRate: formatRate(clicked, sent),
+    sent: summary.sent,
+    delivered: summary.delivered,
+    opened: summary.opened,
+    openedRaw: summary.openedRaw,
+    clicked: summary.clicked,
+    failed: summary.failed,
+    openRate: summary.openRate,
+    openRateRaw: summary.openRateRaw,
+    clickRate: summary.clickRate,
+    clickToOpenRate: summary.clickToOpenRate,
   };
 }
 

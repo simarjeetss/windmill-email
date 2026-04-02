@@ -234,3 +234,121 @@ end $$;
 create index if not exists sent_emails_user_id_idx on sent_emails(user_id);
 create index if not exists sent_emails_campaign_id_idx on sent_emails(campaign_id);
 create index if not exists sent_emails_contact_id_idx on sent_emails(contact_id);
+
+
+-- ─── 008: Template attachments (see 008_template_attachments.sql for Storage bucket setup) ─
+
+create table if not exists email_template_attachments (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references auth.users(id) on delete cascade,
+  template_id  uuid references email_templates(id) on delete cascade,
+  file_name    text not null,
+  file_size    bigint not null default 0,
+  content_type text not null default 'application/octet-stream',
+  storage_path text not null,
+  sort_order   int not null default 0,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists email_template_attachments_user_id_idx on email_template_attachments(user_id);
+create index if not exists email_template_attachments_template_id_idx on email_template_attachments(template_id);
+
+alter table email_template_attachments enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies
+    where tablename = 'email_template_attachments'
+      and policyname = 'email_template_attachments: owner full access'
+  ) then
+    create policy "email_template_attachments: owner full access"
+      on email_template_attachments for all
+      using  (auth.uid() = user_id)
+      with check (auth.uid() = user_id);
+  end if;
+end $$;
+
+
+-- ─── 009: Email events + delivery timestamps (see 009_email_events.sql) ─
+
+alter table sent_emails add column if not exists delivered_at timestamptz;
+alter table sent_emails add column if not exists bounced_at timestamptz;
+alter table sent_emails add column if not exists complaint_at timestamptz;
+
+create index if not exists sent_emails_delivered_at_idx on sent_emails(delivered_at) where delivered_at is not null;
+
+create table if not exists email_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  sent_email_id uuid references sent_emails(id) on delete cascade,
+  campaign_id uuid references campaigns(id) on delete cascade,
+  contact_id uuid references contacts(id) on delete set null,
+  event_type text not null
+    check (event_type in ('sent', 'delivered', 'open', 'click', 'bounce', 'complaint', 'deferred')),
+  event_source text not null
+    check (event_source in ('track_pixel', 'track_click', 'resend_webhook', 'system')),
+  occurred_at timestamptz not null default now(),
+  url text,
+  user_agent text,
+  ip text,
+  provider_message_id text,
+  provider_event_id text,
+  raw_payload jsonb,
+  is_suspected_bot boolean not null default false,
+  confidence real not null default 1,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists email_events_provider_event_id_uidx
+  on email_events(provider_event_id)
+  where provider_event_id is not null;
+
+create index if not exists email_events_user_occurred_idx on email_events(user_id, occurred_at desc);
+create index if not exists email_events_campaign_occurred_idx on email_events(campaign_id, occurred_at desc);
+create index if not exists email_events_sent_email_occurred_idx on email_events(sent_email_id, occurred_at desc);
+create index if not exists email_events_type_idx on email_events(event_type);
+
+alter table email_events enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies
+    where tablename = 'email_events' and policyname = 'email_events: owner full access'
+  ) then
+    create policy "email_events: owner full access"
+      on email_events for all
+      using  (auth.uid() = user_id)
+      with check (auth.uid() = user_id);
+  end if;
+end $$;
+
+
+-- ─── 010: email_event_stats RPC (see 010_email_event_stats.sql) ─
+
+create or replace function public.email_event_stats(
+  p_since timestamptz,
+  p_campaign_id uuid default null
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'delivered_unique', coalesce(count(distinct e.sent_email_id) filter (where e.event_type = 'delivered'), 0),
+    'open_unique_raw', coalesce(count(distinct e.sent_email_id) filter (where e.event_type = 'open'), 0),
+    'open_unique_trusted', coalesce(
+      count(distinct e.sent_email_id) filter (where e.event_type = 'open' and not e.is_suspected_bot),
+      0
+    ),
+    'click_unique', coalesce(count(distinct e.sent_email_id) filter (where e.event_type = 'click'), 0)
+  )
+  from email_events e
+  where e.user_id = auth.uid()
+    and e.occurred_at >= p_since
+    and (p_campaign_id is null or e.campaign_id = p_campaign_id);
+$$;
+
+revoke all on function public.email_event_stats(timestamptz, uuid) from public;
+grant execute on function public.email_event_stats(timestamptz, uuid) to authenticated;
