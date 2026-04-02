@@ -179,6 +179,7 @@ export async function POST(req: Request) {
 
   const occurredAt = payload.created_at ?? payload.data?.created_at ?? new Date().toISOString();
   const eventSource: EmailEventSource = "resend_webhook";
+  const isOpenEvent = mapped === "open";
 
   const { error: insError } = await supabase.from("email_events").insert({
     sent_email_id: sent.id,
@@ -191,8 +192,9 @@ export async function POST(req: Request) {
     provider_message_id: emailId ?? null,
     provider_event_id: svixId,
     raw_payload: payload as unknown as Record<string, unknown>,
-    is_suspected_bot: mapped === "open",
-    confidence: mapped === "open" ? 0.4 : 1,
+    // In webhook-only mode, provider open events are our source of truth for analytics.
+    is_suspected_bot: false,
+    confidence: isOpenEvent ? 0.9 : 1,
   });
 
   if (insError && (insError as { code?: string }).code === "23505") {
