@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
-import { signout } from "@/lib/supabase/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import UserPanel from "@/components/dashboard/user-panel";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview" },
@@ -15,14 +15,7 @@ const NAV_ITEMS = [
 ];
 
 export default function DashboardTopbar({ user }: { user: User }) {
-  const [isPending, startTransition] = useTransition();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  function handleSignOut() {
-    startTransition(async () => {
-      await signout();
-    });
-  }
 
   return (
     <header
@@ -56,16 +49,21 @@ export default function DashboardTopbar({ user }: { user: User }) {
             </svg>
           </SheetTrigger>
           <SheetContent side="left" className="p-0" style={{ background: "var(--wm-surface)" }}>
-            <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--wm-border)" }}>
-              <span
-                className="text-lg font-semibold"
-                style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
-              >
-                Windmill
-              </span>
-              <p className="text-xs mt-1" style={{ color: "var(--wm-text-muted)" }}>
-                {user.email}
-              </p>
+            <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: "1px solid var(--wm-border)" }}>
+              <svg width="24" height="24" viewBox="0 0 48 48" fill="none" style={{ color: "var(--wm-accent)" }}>
+                <line x1="24" y1="24" x2="24" y2="46" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                <circle cx="24" cy="24" r="3" fill="currentColor" />
+                <g className="windmill-blades-mobile">
+                  <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" />
+                  <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" transform="rotate(120 24 24)" />
+                  <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" transform="rotate(240 24 24)" />
+                </g>
+              </svg>
+              <div>
+                <p className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
+                  {user.email}
+                </p>
+              </div>
             </div>
             <nav className="p-3 space-y-1">
               {NAV_ITEMS.map((item) => (
@@ -86,12 +84,27 @@ export default function DashboardTopbar({ user }: { user: User }) {
             </nav>
           </SheetContent>
         </Sheet>
-        <span
-          className="text-[15px] font-semibold"
-          style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
-        >
-          Windmill
-        </span>
+        <Link href="/dashboard">
+          <svg width="24" height="24" viewBox="0 0 48 48" fill="none" style={{ color: "var(--wm-accent)" }}>
+            <line x1="24" y1="24" x2="24" y2="46" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="24" cy="24" r="3" fill="currentColor" />
+            <g className="windmill-blades-mobile">
+              <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" />
+              <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" transform="rotate(120 24 24)" />
+              <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" transform="rotate(240 24 24)" />
+            </g>
+          </svg>
+        </Link>
+        <style jsx>{`
+          .windmill-blades-mobile {
+            transform-origin: 24px 24px;
+            animation: spin-blades-mobile 4s linear infinite;
+          }
+          @keyframes spin-blades-mobile {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
 
       {/* Left — desktop greeting */}
@@ -125,59 +138,8 @@ export default function DashboardTopbar({ user }: { user: User }) {
         {/* Theme toggle */}
         <ThemeToggle />
 
-        {/* Avatar */}
-        <div
-          className="flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold uppercase"
-          style={{
-            background: "var(--wm-accent-dim)",
-            border: "1px solid rgba(43,122,95,0.2)",
-            color: "var(--wm-accent)",
-          }}
-        >
-          {user.email?.[0]}
-        </div>
-
-        {/* Sign out */}
-        <button
-          onClick={handleSignOut}
-          disabled={isPending}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all"
-          style={{
-            background: "transparent",
-            border: "1px solid var(--wm-border)",
-            color: "var(--wm-text-muted)",
-            cursor: isPending ? "wait" : "pointer",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "rgba(239,68,68,0.3)";
-            (e.currentTarget as HTMLButtonElement).style.color = "#f87171";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "var(--wm-border)";
-            (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--wm-text-muted)";
-          }}
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          <span className="hidden sm:inline">
-            {isPending ? "Signing out…" : "Sign out"}
-          </span>
-        </button>
+        {/* User panel (avatar + dropdown) */}
+        <UserPanel user={user} />
       </div>
     </header>
   );
