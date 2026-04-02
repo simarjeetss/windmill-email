@@ -13,6 +13,8 @@ export type AnalyticsRow = {
   campaign_id: string | null;
   contact_id: string | null;
   status: string | null;
+  subject: string | null;
+  body: string | null;
   sent_at: string | null;
   opened_at: string | null;
   clicked_at: string | null;
@@ -73,7 +75,7 @@ export async function getAnalyticsOverview(rangeDays: number): Promise<Analytics
   const { data: rows, error: rowsError } = await supabase
     .from("sent_emails")
     .select(
-      "id, campaign_id, contact_id, status, sent_at, opened_at, clicked_at, created_at, contacts(email, first_name, last_name, company), campaigns(name)"
+      "id, campaign_id, contact_id, status, subject, body, sent_at, opened_at, clicked_at, created_at, contacts(email, first_name, last_name, company), campaigns(name)"
     )
     .eq("user_id", user.id)
     .gte("created_at", since.toISOString())

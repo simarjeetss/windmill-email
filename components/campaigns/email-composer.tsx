@@ -183,6 +183,12 @@ export default function EmailComposer({
       setSendStatus("sent");
       setSendSummary({ sent: result.sent, failed: result.failed });
       setShowSendModal(false);
+      // Clear the composer so the user starts fresh for the next send
+      setSubject("");
+      setBody("");
+      setSavedSubject("");
+      setSavedBody("");
+      setSaveStatus("idle");
     });
   }
 
