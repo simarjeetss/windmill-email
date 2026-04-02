@@ -81,9 +81,9 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
         aria-label="Open template library"
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
         style={{
-          background: "var(--rk-surface)",
-          border: "1px solid var(--rk-border)",
-          color: "var(--rk-text-muted)",
+          background: "var(--wm-surface)",
+          border: "1px solid var(--wm-border)",
+          color: "var(--wm-text-muted)",
           cursor: "pointer",
         }}
       >
@@ -100,8 +100,8 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
           <div
             className="rk-fade-up w-full sm:max-w-xl mx-4 rounded-2xl overflow-hidden flex flex-col"
             style={{
-              background: "var(--rk-surface, #141417)",
-              border: "1px solid rgba(212,168,83,0.2)",
+              background: "var(--wm-surface, #141417)",
+              border: "1px solid rgba(43,122,95,0.2)",
               boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
               maxHeight: "72vh",
             }}
@@ -109,24 +109,24 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
             {/* Header */}
             <div
               className="flex items-center gap-3 px-4 pt-4 pb-3"
-              style={{ borderBottom: "1px solid var(--rk-border)" }}
+              style={{ borderBottom: "1px solid var(--wm-border)" }}
             >
               <LibraryIcon gold />
               <span
                 className="text-sm font-semibold flex-1"
-                style={{ color: "var(--rk-text)", fontFamily: "var(--font-display, serif)" }}
+                style={{ color: "var(--wm-text)", fontFamily: "var(--font-display, serif)" }}
               >
                 Template Library
               </span>
-              <span className="text-[10px]" style={{ color: "var(--rk-text-sub)" }}>
+              <span className="text-[10px]" style={{ color: "var(--wm-text-sub)" }}>
                 {templates.length} template{templates.length !== 1 ? "s" : ""}
               </span>
               <kbd
                 className="text-[10px] px-1.5 py-0.5 rounded"
                 style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid var(--rk-border)",
-                  color: "var(--rk-text-sub)",
+                  background: "var(--wm-border)",
+                  border: "1px solid var(--wm-border)",
+                  color: "var(--wm-text-sub)",
                   fontFamily: "monospace",
                 }}
               >
@@ -137,7 +137,7 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
             {/* Search */}
             <div
               className="flex items-center gap-2 px-4 py-2.5"
-              style={{ borderBottom: "1px solid var(--rk-border)" }}
+              style={{ borderBottom: "1px solid var(--wm-border)" }}
             >
               <SearchIcon />
               <input
@@ -148,12 +148,12 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search by name, subject, or body…"
                 className="flex-1 bg-transparent text-sm outline-none"
-                style={{ color: "var(--rk-text)", caretColor: "var(--rk-gold)" }}
+                style={{ color: "var(--wm-text)", caretColor: "var(--wm-accent)" }}
               />
               {query && (
                 <button
                   onClick={() => setQuery("")}
-                  style={{ background: "none", border: "none", color: "var(--rk-text-sub)", cursor: "pointer", padding: 0 }}
+                  style={{ background: "none", border: "none", color: "var(--wm-text-sub)", cursor: "pointer", padding: 0 }}
                 >
                   ✕
                 </button>
@@ -163,7 +163,7 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
             {/* List */}
             <div ref={listRef} className="overflow-y-auto flex-1">
               {loading && (
-                <div className="flex items-center justify-center py-12 gap-2" style={{ color: "var(--rk-text-sub)" }}>
+                <div className="flex items-center justify-center py-12 gap-2" style={{ color: "var(--wm-text-sub)" }}>
                   <SpinnerIcon />
                   <span className="text-sm">Loading templates…</span>
                 </div>
@@ -177,16 +177,16 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
                 <div className="flex flex-col items-center justify-center py-14 gap-3">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ background: "rgba(212,168,83,0.06)", border: "1px solid rgba(212,168,83,0.15)" }}
+                    style={{ background: "rgba(43,122,95,0.06)", border: "1px solid rgba(43,122,95,0.15)" }}
                   >
                     <LibraryIcon gold />
                   </div>
-                  <p className="text-sm" style={{ color: "var(--rk-text-sub)", fontStyle: "italic" }}>
+                  <p className="text-sm" style={{ color: "var(--wm-text-sub)", fontStyle: "italic" }}>
                     {query ? "No templates match your search" : "No saved templates yet"}
                   </p>
                   {!query && (
-                    <p className="text-xs text-center max-w-xs" style={{ color: "var(--rk-text-sub)" }}>
-                      Click <strong style={{ color: "var(--rk-text-muted)" }}>"Save template"</strong> after composing an email to add it here.
+                    <p className="text-xs text-center max-w-xs" style={{ color: "var(--wm-text-sub)" }}>
+                      Click <strong style={{ color: "var(--wm-text-muted)" }}>"Save template"</strong> after composing an email to add it here.
                     </p>
                   )}
                 </div>
@@ -201,8 +201,8 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
                       onMouseEnter={() => setActiveIdx(i)}
                       className="group relative rounded-xl transition-all"
                       style={{
-                        background: activeIdx === i ? "rgba(212,168,83,0.08)" : "transparent",
-                        border: activeIdx === i ? "1px solid rgba(212,168,83,0.2)" : "1px solid transparent",
+                        background: activeIdx === i ? "rgba(43,122,95,0.08)" : "transparent",
+                        border: activeIdx === i ? "1px solid rgba(43,122,95,0.2)" : "1px solid transparent",
                       }}
                     >
                       <button
@@ -213,23 +213,23 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
                         <div className="flex items-center justify-between gap-2 mb-1.5 pr-6">
                           <span
                             className="text-sm font-semibold truncate"
-                            style={{ color: activeIdx === i ? "var(--rk-gold)" : "var(--rk-text)" }}
+                            style={{ color: activeIdx === i ? "var(--wm-accent)" : "var(--wm-text)" }}
                           >
                             {t.name}
                           </span>
-                          <span className="text-[10px] shrink-0" style={{ color: "var(--rk-text-sub)" }}>
+                          <span className="text-[10px] shrink-0" style={{ color: "var(--wm-text-sub)" }}>
                             {formatDate(t.updated_at)}
                           </span>
                         </div>
-                        <div className="text-xs mb-1 truncate pr-6" style={{ color: "var(--rk-text-muted)" }}>
+                        <div className="text-xs mb-1 truncate pr-6" style={{ color: "var(--wm-text-muted)" }}>
                           {t.subject || <em style={{ opacity: 0.4 }}>No subject</em>}
                         </div>
-                        <div className="text-xs leading-relaxed line-clamp-2 pr-6" style={{ color: "var(--rk-text-sub)" }}>
+                        <div className="text-xs leading-relaxed line-clamp-2 pr-6" style={{ color: "var(--wm-text-sub)" }}>
                           {t.body.slice(0, 120)}{t.body.length > 120 ? "…" : ""}
                         </div>
                         {activeIdx === i && (
                           <div className="mt-2">
-                            <span className="text-[10px]" style={{ color: "var(--rk-gold)" }}>↵ Load into editor</span>
+                            <span className="text-[10px]" style={{ color: "var(--wm-accent)" }}>↵ Load into editor</span>
                           </div>
                         )}
                       </button>
@@ -258,13 +258,13 @@ export default function TemplateLibrary({ onLoad }: TemplateLibraryProps) {
             {filtered.length > 0 && (
               <div
                 className="px-4 py-2.5 flex items-center gap-3"
-                style={{ borderTop: "1px solid var(--rk-border)" }}
+                style={{ borderTop: "1px solid var(--wm-border)" }}
               >
-                <span className="text-[10px]" style={{ color: "var(--rk-text-sub)" }}>
+                <span className="text-[10px]" style={{ color: "var(--wm-text-sub)" }}>
                   ↑↓ navigate · ↵ load · Esc dismiss
                 </span>
                 {query && (
-                  <span className="text-[10px] ml-auto" style={{ color: "var(--rk-text-sub)" }}>
+                  <span className="text-[10px] ml-auto" style={{ color: "var(--wm-text-sub)" }}>
                     {filtered.length} of {templates.length}
                   </span>
                 )}
@@ -290,7 +290,7 @@ function formatDate(iso: string): string {
 function LibraryIcon({ gold }: { gold?: boolean }) {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke={gold ? "var(--rk-gold)" : "currentColor"}
+      stroke={gold ? "var(--wm-accent)" : "currentColor"}
       strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
     >
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
@@ -303,7 +303,7 @@ function SearchIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      style={{ color: "var(--rk-text-sub)", flexShrink: 0 }}
+      style={{ color: "var(--wm-text-sub)", flexShrink: 0 }}
     >
       <circle cx="11" cy="11" r="8" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />

@@ -61,16 +61,16 @@ export default function SenderProfileSheet({
   const defaultTrigger = (
     <button
       className="flex items-center gap-1.5 text-xs transition-colors"
-      style={{ color: "var(--rk-text-muted)" }}
+      style={{ color: "var(--wm-text-muted)" }}
     >
       <UserIcon size={12} />
       {profile?.full_name ? (
         <>
-          <span style={{ color: "var(--rk-text)" }}>{profile.full_name}</span>
-          <PencilIcon size={10} style={{ color: "var(--rk-text-sub)" }} />
+          <span style={{ color: "var(--wm-text)" }}>{profile.full_name}</span>
+          <PencilIcon size={10} style={{ color: "var(--wm-text-sub)" }} />
         </>
       ) : (
-        <span style={{ color: "var(--rk-gold)" }}>Set your name →</span>
+        <span style={{ color: "var(--wm-accent)" }}>Set your name →</span>
       )}
     </button>
   );
@@ -91,35 +91,35 @@ export default function SenderProfileSheet({
           side="right"
           className="w-full sm:max-w-md flex flex-col gap-0 p-0"
           style={{
-            background: "var(--rk-surface)",
-            borderLeft: "1px solid var(--rk-border)",
-            color: "var(--rk-text)",
+            background: "var(--wm-surface)",
+            borderLeft: "1px solid var(--wm-border)",
+            color: "var(--wm-text)",
           }}
         >
         {/* Header */}
-        <SheetHeader className="px-6 pt-6 pb-4" style={{ borderBottom: "1px solid var(--rk-border)" }}>
+        <SheetHeader className="px-6 pt-6 pb-4" style={{ borderBottom: "1px solid var(--wm-border)" }}>
           <div className="flex items-center gap-2 mb-1">
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: "var(--rk-gold-dim)", border: "1px solid rgba(212,168,83,0.25)" }}
+              style={{ background: "var(--wm-accent-dim)", border: "1px solid rgba(43,122,95,0.25)" }}
             >
-              <UserIcon size={14} style={{ color: "var(--rk-gold)" }} />
+              <UserIcon size={14} style={{ color: "var(--wm-accent)" }} />
             </div>
             <SheetTitle
               className="text-base font-semibold"
-              style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+              style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
             >
               Sender Profile
             </SheetTitle>
           </div>
-          <SheetDescription style={{ color: "var(--rk-text-muted)" }}>
+          <SheetDescription style={{ color: "var(--wm-text-muted)" }}>
             Set your name and company once — they'll be used automatically as{" "}
             <code
               className="text-[11px] px-1.5 py-0.5 rounded"
               style={{
-                background: "rgba(212,168,83,0.08)",
-                border: "1px solid rgba(212,168,83,0.2)",
-                color: "var(--rk-gold)",
+                background: "rgba(43,122,95,0.08)",
+                border: "1px solid rgba(43,122,95,0.2)",
+                color: "var(--wm-accent)",
               }}
             >
               {"{{sender_name}}"}
@@ -128,9 +128,9 @@ export default function SenderProfileSheet({
             <code
               className="text-[11px] px-1.5 py-0.5 rounded"
               style={{
-                background: "rgba(212,168,83,0.08)",
-                border: "1px solid rgba(212,168,83,0.2)",
-                color: "var(--rk-gold)",
+                background: "rgba(43,122,95,0.08)",
+                border: "1px solid rgba(43,122,95,0.2)",
+                color: "var(--wm-accent)",
               }}
             >
               {"{{sender_company}}"}
@@ -146,9 +146,9 @@ export default function SenderProfileSheet({
             <label
               htmlFor="sp-full-name"
               className="text-xs uppercase tracking-widest"
-              style={{ color: "var(--rk-text-sub)" }}
+              style={{ color: "var(--wm-text-sub)" }}
             >
-              Full Name <span style={{ color: "var(--rk-gold)" }}>*</span>
+              Full Name <span style={{ color: "var(--wm-accent)" }}>*</span>
             </label>
             <input
               id="sp-full-name"
@@ -158,13 +158,13 @@ export default function SenderProfileSheet({
               placeholder="e.g. Alex Chen"
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
               style={{
-                background: "var(--rk-bg)",
-                border: "1px solid var(--rk-border)",
-                color: "var(--rk-text)",
-                caretColor: "var(--rk-gold)",
+                background: "var(--wm-bg)",
+                border: "1px solid var(--wm-border)",
+                color: "var(--wm-text)",
+                caretColor: "var(--wm-accent)",
               }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(212,168,83,0.5)")}
-              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--rk-border)")}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(43,122,95,0.5)")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--wm-border)")}
             />
           </div>
 
@@ -173,7 +173,7 @@ export default function SenderProfileSheet({
             <label
               htmlFor="sp-company"
               className="text-xs uppercase tracking-widest"
-              style={{ color: "var(--rk-text-sub)" }}
+              style={{ color: "var(--wm-text-sub)" }}
             >
               Company / Organisation
             </label>
@@ -185,13 +185,13 @@ export default function SenderProfileSheet({
               placeholder="e.g. Acme Inc."
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
               style={{
-                background: "var(--rk-bg)",
-                border: "1px solid var(--rk-border)",
-                color: "var(--rk-text)",
-                caretColor: "var(--rk-gold)",
+                background: "var(--wm-bg)",
+                border: "1px solid var(--wm-border)",
+                color: "var(--wm-text)",
+                caretColor: "var(--wm-accent)",
               }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(212,168,83,0.5)")}
-              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--rk-border)")}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(43,122,95,0.5)")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--wm-border)")}
             />
           </div>
 
@@ -199,9 +199,9 @@ export default function SenderProfileSheet({
           {(fullName || company) && (
             <div
               className="rounded-lg px-4 py-3 space-y-1.5"
-              style={{ background: "var(--rk-bg)", border: "1px solid var(--rk-border)" }}
+              style={{ background: "var(--wm-bg)", border: "1px solid var(--wm-border)" }}
             >
-              <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: "var(--rk-text-sub)" }}>
+              <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: "var(--wm-text-sub)" }}>
                 Preview in emails
               </p>
               {[
@@ -212,16 +212,16 @@ export default function SenderProfileSheet({
                   <code
                     className="px-1.5 py-0.5 rounded text-[11px]"
                     style={{
-                      background: "rgba(212,168,83,0.08)",
-                      border: "1px solid rgba(212,168,83,0.15)",
-                      color: "var(--rk-gold)",
+                      background: "rgba(43,122,95,0.08)",
+                      border: "1px solid rgba(43,122,95,0.15)",
+                      color: "var(--wm-accent)",
                       fontFamily: "monospace",
                     }}
                   >
                     {token}
                   </code>
-                  <span style={{ color: "var(--rk-text-sub)" }}>→</span>
-                  <span style={{ color: "var(--rk-text-muted)" }}>{value}</span>
+                  <span style={{ color: "var(--wm-text-sub)" }}>→</span>
+                  <span style={{ color: "var(--wm-text-muted)" }}>{value}</span>
                 </div>
               ))}
             </div>
@@ -241,7 +241,7 @@ export default function SenderProfileSheet({
         {/* Footer */}
         <SheetFooter
           className="px-6 pb-6 pt-4 flex-row gap-2"
-          style={{ borderTop: "1px solid var(--rk-border)" }}
+          style={{ borderTop: "1px solid var(--wm-border)" }}
         >
           <button
             onClick={handleSave}
@@ -251,12 +251,12 @@ export default function SenderProfileSheet({
               background: saved
                 ? "rgba(34,197,94,0.12)"
                 : isPending || !fullName.trim()
-                ? "rgba(212,168,83,0.06)"
-                : "rgba(212,168,83,0.12)",
+                ? "rgba(43,122,95,0.06)"
+                : "rgba(43,122,95,0.12)",
               border: saved
                 ? "1px solid rgba(34,197,94,0.3)"
-                : "1px solid rgba(212,168,83,0.3)",
-              color: saved ? "#4ade80" : "var(--rk-gold)",
+                : "1px solid rgba(43,122,95,0.3)",
+              color: saved ? "var(--wm-accent)" : "var(--wm-accent)",
               cursor: isPending || !fullName.trim() ? "not-allowed" : "pointer",
               opacity: isPending || !fullName.trim() ? 0.6 : 1,
             }}
@@ -281,8 +281,8 @@ export default function SenderProfileSheet({
                 className="px-4 py-2.5 rounded-lg text-sm transition-all"
                 style={{
                   background: "transparent",
-                  border: "1px solid var(--rk-border)",
-                  color: "var(--rk-text-muted)",
+                  border: "1px solid var(--wm-border)",
+                  color: "var(--wm-text-muted)",
                   cursor: "pointer",
                 }}
               />

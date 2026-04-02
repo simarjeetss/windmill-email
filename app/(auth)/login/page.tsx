@@ -24,12 +24,12 @@ export default function LoginPage() {
       <div className="rk-fade-up mb-8">
         <h1
           className="text-3xl font-medium mb-2"
-          style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+          style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
         >
           Welcome back
         </h1>
-        <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
-          Sign in to your ReachKit account
+        <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
+          Sign in to your Windmill account
         </p>
       </div>
 
@@ -39,7 +39,7 @@ export default function LoginPage() {
           <label
             htmlFor="email"
             className="block text-xs uppercase tracking-widest"
-            style={{ color: "var(--rk-text-muted)" }}
+            style={{ color: "var(--wm-text-muted)" }}
           >
             Email
           </label>
@@ -58,7 +58,7 @@ export default function LoginPage() {
           <label
             htmlFor="password"
             className="block text-xs uppercase tracking-widest"
-            style={{ color: "var(--rk-text-muted)" }}
+            style={{ color: "var(--wm-text-muted)" }}
           >
             Password
           </label>
@@ -101,11 +101,11 @@ export default function LoginPage() {
 
       {/* Divider */}
       <div className="rk-fade-up rk-delay-4 flex items-center gap-3 my-6">
-        <div className="flex-1 h-px" style={{ background: "var(--rk-border)" }} />
-        <span className="text-xs" style={{ color: "var(--rk-text-sub)" }}>
+        <div className="flex-1 h-px" style={{ background: "var(--wm-border)" }} />
+        <span className="text-xs" style={{ color: "var(--wm-text-sub)" }}>
           or
         </span>
-        <div className="flex-1 h-px" style={{ background: "var(--rk-border)" }} />
+        <div className="flex-1 h-px" style={{ background: "var(--wm-border)" }} />
       </div>
 
       {/* Switch */}
@@ -113,14 +113,14 @@ export default function LoginPage() {
         <Link href="/signup" className="block">
           <button type="button" className="rk-btn-ghost">
             Don&apos;t have an account?{" "}
-            <span style={{ color: "var(--rk-gold)" }}>Create one</span>
+            <span style={{ color: "var(--wm-accent)" }}>Create one</span>
           </button>
         </Link>
       </div>
 
       <p
         className="rk-fade-up rk-delay-5 mt-8 text-center text-xs"
-        style={{ color: "var(--rk-text-sub)" }}
+        style={{ color: "var(--wm-text-sub)" }}
       >
         By signing in you agree to our Terms of Service and Privacy Policy.
       </p>

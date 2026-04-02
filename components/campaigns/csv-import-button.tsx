@@ -90,9 +90,9 @@ export default function CsvImportButton({ campaignId }: { campaignId: string }) 
         disabled={isPending}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
         style={{
-          background: "var(--rk-surface-2)",
-          border: "1px solid var(--rk-border-md)",
-          color: "var(--rk-text-muted)",
+          background: "var(--wm-surface-2)",
+          border: "1px solid var(--wm-border-md)",
+          color: "var(--wm-text-muted)",
           cursor: isPending ? "wait" : "pointer",
           opacity: isPending ? 0.7 : 1,
         }}
@@ -106,7 +106,7 @@ export default function CsvImportButton({ campaignId }: { campaignId: string }) 
       </button>
 
       {result && (
-        <span className="text-[11px]" style={{ color: "#4ade80" }}>
+        <span className="text-[11px]" style={{ color: "var(--wm-accent)" }}>
           ✓ {result.inserted} imported{result.skipped > 0 ? `, ${result.skipped} skipped` : ""}
         </span>
       )}

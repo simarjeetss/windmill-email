@@ -49,7 +49,7 @@ export default function AnalyticsFilters({
   return (
     <div className="flex items-center gap-2">
       <Select value={campaign} onValueChange={handleChange}>
-        <SelectTrigger className="w-[220px] bg-[var(--rk-surface-2)] text-[var(--rk-text)]">
+        <SelectTrigger className="w-[220px] bg-[var(--wm-surface-2)] text-[var(--wm-text)]">
           <SelectValue placeholder="Select campaign" />
         </SelectTrigger>
         <SelectContent>

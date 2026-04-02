@@ -8,10 +8,10 @@ import DeleteCampaignButton from "@/components/campaigns/delete-campaign-button"
 import CampaignTabs from "@/components/campaigns/campaign-tabs";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  draft:     { bg: "rgba(255,255,255,0.04)", color: "var(--rk-text-muted)", border: "rgba(255,255,255,0.1)" },
-  active:    { bg: "rgba(34,197,94,0.08)",   color: "#4ade80",              border: "rgba(34,197,94,0.2)"   },
-  paused:    { bg: "rgba(251,146,60,0.08)",  color: "#fb923c",              border: "rgba(251,146,60,0.2)"  },
-  completed: { bg: "rgba(99,102,241,0.08)",  color: "#818cf8",              border: "rgba(99,102,241,0.2)"  },
+  draft:     { bg: "rgba(100,116,139,0.08)", color: "var(--wm-text-muted)", border: "rgba(100,116,139,0.15)" },
+  active:    { bg: "rgba(43,122,95,0.10)",   color: "var(--wm-accent)",      border: "rgba(43,122,95,0.22)"  },
+  paused:    { bg: "rgba(217,119,6,0.08)",   color: "#d97706",               border: "rgba(217,119,6,0.2)"   },
+  completed: { bg: "rgba(99,102,241,0.08)",  color: "#6366f1",               border: "rgba(99,102,241,0.2)"  },
 };
 
 export default async function CampaignDetailPage({
@@ -38,7 +38,7 @@ export default async function CampaignDetailPage({
         <Link
           href="/dashboard/campaigns"
           className="flex items-center gap-1.5 text-xs mb-4 w-fit transition-colors"
-          style={{ color: "var(--rk-text-muted)" }}
+          style={{ color: "var(--wm-text-muted)" }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -51,7 +51,7 @@ export default async function CampaignDetailPage({
             <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h1
                 className="text-3xl font-medium"
-                style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
               >
                 {campaign.name}
               </h1>
@@ -63,7 +63,7 @@ export default async function CampaignDetailPage({
               </span>
             </div>
             {campaign.description && (
-              <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+              <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
                 {campaign.description}
               </p>
             )}
@@ -89,15 +89,15 @@ export default async function CampaignDetailPage({
           <div
             key={s.label}
             className="rounded-xl p-4"
-            style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+            style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
           >
             <div
               className="text-2xl font-semibold mb-1"
-              style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+              style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
             >
               {s.value}
             </div>
-            <div className="text-xs uppercase tracking-wider" style={{ color: "var(--rk-text-muted)" }}>
+            <div className="text-xs uppercase tracking-wider" style={{ color: "var(--wm-text-muted)" }}>
               {s.label}
             </div>
           </div>

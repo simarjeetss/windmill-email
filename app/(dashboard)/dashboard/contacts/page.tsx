@@ -13,11 +13,11 @@ export default async function ContactsPage() {
         <div>
           <h1
             className="text-3xl font-medium mb-1"
-            style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+            style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
           >
             Contacts
           </h1>
-          <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
             {contacts.length === 0
               ? "Add contacts to start sending campaigns"
               : `${contacts.length} contact${contacts.length !== 1 ? "s" : ""}`}

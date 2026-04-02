@@ -35,7 +35,7 @@ export default function CampaignTabs({
       {/* ── Tab bar ─────────────────────────────────────────────────────── */}
       <div
         className="flex flex-wrap items-center gap-1 mb-6 p-1 rounded-xl w-full sm:w-fit"
-        style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+        style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
       >
         {/* Email Template tab */}
         <button
@@ -44,14 +44,14 @@ export default function CampaignTabs({
           style={
             tab === "email"
               ? {
-                  background: "rgba(212,168,83,0.12)",
-                  color: "var(--rk-gold)",
-                  border: "1px solid rgba(212,168,83,0.25)",
-                  boxShadow: "0 1px 3px rgba(212,168,83,0.08)",
+                  background: "rgba(43,122,95,0.12)",
+                  color: "var(--wm-accent)",
+                  border: "1px solid rgba(43,122,95,0.25)",
+                  boxShadow: "0 1px 3px rgba(43,122,95,0.08)",
                 }
               : {
                   background: "transparent",
-                  color: "var(--rk-text-muted)",
+                  color: "var(--wm-text-muted)",
                   border: "1px solid transparent",
                 }
           }
@@ -61,9 +61,9 @@ export default function CampaignTabs({
           <span
             className="text-[10px] px-1.5 py-0.5 rounded font-medium ml-0.5"
             style={{
-              background: tab === "email" ? "rgba(212,168,83,0.15)" : "rgba(255,255,255,0.04)",
-              color: tab === "email" ? "var(--rk-gold)" : "var(--rk-text-sub)",
-              border: tab === "email" ? "1px solid rgba(212,168,83,0.2)" : "1px solid rgba(255,255,255,0.06)",
+              background: tab === "email" ? "rgba(43,122,95,0.15)" : "var(--wm-surface-2)",
+              color: tab === "email" ? "var(--wm-accent)" : "var(--wm-text-sub)",
+              border: tab === "email" ? "1px solid rgba(43,122,95,0.2)" : "1px solid var(--wm-border)",
             }}
           >
             AI
@@ -77,13 +77,13 @@ export default function CampaignTabs({
           style={
             tab === "contacts"
               ? {
-                  background: "rgba(212,168,83,0.12)",
-                  color: "var(--rk-gold)",
-                  border: "1px solid rgba(212,168,83,0.25)",
+                  background: "rgba(43,122,95,0.12)",
+                  color: "var(--wm-accent)",
+                  border: "1px solid rgba(43,122,95,0.25)",
                 }
               : {
                   background: "transparent",
-                  color: "var(--rk-text-muted)",
+                  color: "var(--wm-text-muted)",
                   border: "1px solid transparent",
                 }
           }
@@ -93,9 +93,9 @@ export default function CampaignTabs({
           <span
             className="text-[10px] px-1.5 py-0.5 rounded-full font-medium ml-0.5 tabular-nums"
             style={{
-              background: tab === "contacts" ? "rgba(212,168,83,0.15)" : "rgba(255,255,255,0.04)",
-              color: tab === "contacts" ? "var(--rk-gold)" : "var(--rk-text-sub)",
-              border: tab === "contacts" ? "1px solid rgba(212,168,83,0.2)" : "1px solid rgba(255,255,255,0.06)",
+              background: tab === "contacts" ? "rgba(43,122,95,0.15)" : "var(--wm-surface-2)",
+              color: tab === "contacts" ? "var(--wm-accent)" : "var(--wm-text-sub)",
+              border: tab === "contacts" ? "1px solid rgba(43,122,95,0.2)" : "1px solid var(--wm-border)",
             }}
           >
             {contacts.length}
@@ -123,16 +123,16 @@ export default function CampaignTabs({
             <div className="flex items-center gap-2 mb-3">
               <h2
                 className="text-sm font-semibold"
-                style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
               >
                 Contacts
               </h2>
               <span
                 className="text-xs px-2 py-0.5 rounded-full"
                 style={{
-                  background: "var(--rk-gold-dim)",
-                  color: "var(--rk-gold)",
-                  border: "1px solid rgba(212,168,83,0.2)",
+                  background: "var(--wm-accent-dim)",
+                  color: "var(--wm-accent)",
+                  border: "1px solid rgba(43,122,95,0.2)",
                 }}
               >
                 {contacts.length}
@@ -148,7 +148,7 @@ export default function CampaignTabs({
           <div className="lg:col-span-2">
             <h2
               className="text-sm font-semibold mb-3"
-              style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+              style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
             >
               Add Contact
             </h2>
@@ -173,7 +173,7 @@ function SparkleIcon({ active }: { active: boolean }) {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ color: active ? "var(--rk-gold)" : "var(--rk-text-muted)" }}
+      style={{ color: active ? "var(--wm-accent)" : "var(--wm-text-muted)" }}
     >
       <path d="M12 3 L13.5 8.5 L19 10 L13.5 11.5 L12 17 L10.5 11.5 L5 10 L10.5 8.5 Z" />
       <path d="M5 3 L5.75 5.25 L8 6 L5.75 6.75 L5 9 L4.25 6.75 L2 6 L4.25 5.25 Z" />
@@ -193,7 +193,7 @@ function ContactsIcon({ active }: { active: boolean }) {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ color: active ? "var(--rk-gold)" : "var(--rk-text-muted)" }}
+      style={{ color: active ? "var(--wm-accent)" : "var(--wm-text-muted)" }}
     >
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />

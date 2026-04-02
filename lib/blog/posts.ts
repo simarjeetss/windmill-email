@@ -15,7 +15,7 @@ export const POSTS: Post[] = [
     slug: "cold-email-open-rates-2026",
     title: "What Actually Moves Cold Email Open Rates in 2026",
     excerpt:
-      "Subject lines, send times, and sender reputation — we analysed 1.2M emails sent through ReachKit and distilled the findings into six actionable levers.",
+      "Subject lines, send times, and sender reputation — we analysed 1.2M emails sent through Windmill and distilled the findings into six actionable levers.",
     category: "Deliverability",
     author: { name: "Aisha Patel", role: "Head of Growth", initials: "AP" },
     date: "Mar 14, 2026",
@@ -37,7 +37,7 @@ export const POSTS: Post[] = [
       <p>A domain less than 90 days old sending more than 80 emails a day will get flagged. Full stop. If you're using a custom domain, warm it progressively: 20/day the first week, doubling weekly for six weeks. Use SPF, DKIM, and DMARC from day one.</p>
 
       <h2>5. One clear sender identity</h2>
-      <p>Emails from a named human — "Aisha from ReachKit" — consistently outperform company-name senders by 9 percentage points in B2B contexts. People open emails from people.</p>
+      <p>Emails from a named human — "Aisha from Windmill" — consistently outperform company-name senders by 9 percentage points in B2B contexts. People open emails from people.</p>
 
       <h2>6. Remove unengaged contacts ruthlessly</h2>
       <p>Keeping a list clean is a deliverability strategy. Contacts who haven't opened in 90 days are silently poisoning your sender reputation. Segment them into a re-engagement sequence; if they still don't open, remove them.</p>
@@ -65,7 +65,7 @@ export const POSTS: Post[] = [
       <p>Before invoking the AI, enrich each contact with at least one strong signal: a recent funding round, a job posting that reveals a pain point, a LinkedIn post that shows their current focus area. Pass that signal as context to the model. The output quality jumps dramatically.</p>
 
       <h2>Tone mirroring</h2>
-      <p>ReachKit's AI learns from your edits. Every time you tweak an AI-drafted email, the model updates its understanding of your voice. After 15–20 edited emails, the output starts to sound genuinely like you. This is not magic — it's retrieval-augmented generation over your own writing history.</p>
+      <p>Windmill's AI learns from your edits. Every time you tweak an AI-drafted email, the model updates its understanding of your voice. After 15–20 edited emails, the output starts to sound genuinely like you. This is not magic — it's retrieval-augmented generation over your own writing history.</p>
 
       <h2>The three-sentence rule</h2>
       <p>The best cold emails are short: a hook (one sentence), a value proposition (one sentence), and a low-friction ask (one sentence). Train your AI prompts around this structure. Any deviation should be intentional and deliberate.</p>
@@ -97,7 +97,7 @@ export const POSTS: Post[] = [
       <p>Day 1, Day 4, Day 9 is the cadence that performs best in our analysis. Day 1 is the original send. Day 4 catches the reader on a different day and mood. Day 9 is the "last chance" moment. Anything tighter feels pressuring; anything looser loses momentum.</p>
 
       <h2>Pause on reply — immediately</h2>
-      <p>This sounds obvious but is often misconfigured: if someone replies — even to unsubscribe — the sequence must stop. ReachKit pauses the sequence the moment any reply hits your inbox, positive or not. Not respecting this is a deliverability and brand trust killer.</p>
+      <p>This sounds obvious but is often misconfigured: if someone replies — even to unsubscribe — the sequence must stop. Windmill pauses the sequence the moment any reply hits your inbox, positive or not. Not respecting this is a deliverability and brand trust killer.</p>
     `,
   },
   {
@@ -123,7 +123,7 @@ export const POSTS: Post[] = [
       <p>A company hiring a VP of Sales is probably also buying sales tools. A company posting 10 engineering roles is growing and likely open to developer tools and infrastructure products. Use tools like Otta, Lever, or Greenhouse feeds to scrape and monitor job postings as real-time buying signals.</p>
 
       <h2>Verify before you send</h2>
-      <p>Before importing any list into ReachKit, run it through an email verification tool (NeverBounce or Zerobounce). Aim for a bounce rate under 2%. Anything above that will start to damage your sender reputation.</p>
+      <p>Before importing any list into Windmill, run it through an email verification tool (NeverBounce or Zerobounce). Aim for a bounce rate under 2%. Anything above that will start to damage your sender reputation.</p>
     `,
   },
   {

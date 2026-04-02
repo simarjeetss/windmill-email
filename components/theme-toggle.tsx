@@ -12,23 +12,23 @@ export function ThemeToggle() {
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all duration-200"
       style={{
-        background: "var(--rk-surface-2)",
-        border: "1px solid var(--rk-border-md)",
-        color: "var(--rk-text-muted)",
+        background: "var(--wm-surface-2)",
+        border: "1px solid var(--wm-border-md)",
+        color: "var(--wm-text-muted)",
         cursor: "pointer",
         fontFamily: "var(--font-body)",
         letterSpacing: "0.01em",
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLButtonElement).style.borderColor =
-          "rgba(212,168,83,0.4)";
-        (e.currentTarget as HTMLButtonElement).style.color = "var(--rk-gold)";
+          "rgba(43,122,95,0.4)";
+        (e.currentTarget as HTMLButtonElement).style.color = "var(--wm-accent)";
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLButtonElement).style.borderColor =
-          "var(--rk-border-md)";
+          "var(--wm-border-md)";
         (e.currentTarget as HTMLButtonElement).style.color =
-          "var(--rk-text-muted)";
+          "var(--wm-text-muted)";
       }}
     >
       {/* Track */}
@@ -38,9 +38,9 @@ export function ThemeToggle() {
           width: "32px",
           height: "18px",
           background: isDark
-            ? "rgba(212,168,83,0.15)"
-            : "rgba(212,168,83,0.35)",
-          border: `1px solid ${isDark ? "rgba(212,168,83,0.25)" : "rgba(212,168,83,0.6)"}`,
+            ? "rgba(43,122,95,0.15)"
+            : "rgba(43,122,95,0.35)",
+          border: `1px solid ${isDark ? "rgba(43,122,95,0.25)" : "rgba(43,122,95,0.6)"}`,
           borderRadius: "9px",
           transition: "background 0.3s ease, border-color 0.3s ease",
         }}
@@ -54,7 +54,7 @@ export function ThemeToggle() {
             width: "12px",
             height: "12px",
             borderRadius: "50%",
-            background: isDark ? "var(--rk-gold)" : "var(--rk-gold)",
+            background: isDark ? "var(--wm-accent)" : "var(--wm-accent)",
             transition: "left 0.25s cubic-bezier(0.34,1.56,0.64,1)",
             display: "flex",
             alignItems: "center",
@@ -68,7 +68,7 @@ export function ThemeToggle() {
               height="7"
               viewBox="0 0 24 24"
               fill="currentColor"
-              style={{ color: "#0d0d0f" }}
+              style={{ color: "var(--wm-accent-text)" }}
             >
               <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 1 0 9.79 9.79z" />
             </svg>
@@ -80,7 +80,7 @@ export function ThemeToggle() {
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
-              style={{ color: "#0d0d0f" }}
+              style={{ color: "var(--wm-accent-text)" }}
             >
               <circle cx="12" cy="12" r="5" />
               <line x1="12" y1="1" x2="12" y2="3" />

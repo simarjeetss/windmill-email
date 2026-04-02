@@ -36,8 +36,8 @@ export default function DeleteCampaignButton({
       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
       style={{
         background: "transparent",
-        border: "1px solid var(--rk-border)",
-        color: "var(--rk-text-muted)",
+        border: "1px solid var(--wm-border)",
+        color: "var(--wm-text-muted)",
         cursor: isPending ? "wait" : "pointer",
         opacity: isPending ? 0.6 : 1,
       }}
@@ -46,8 +46,8 @@ export default function DeleteCampaignButton({
         (e.currentTarget as HTMLButtonElement).style.color = "#f87171";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--rk-border)";
-        (e.currentTarget as HTMLButtonElement).style.color = "var(--rk-text-muted)";
+        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--wm-border)";
+        (e.currentTarget as HTMLButtonElement).style.color = "var(--wm-text-muted)";
       }}
     >
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
