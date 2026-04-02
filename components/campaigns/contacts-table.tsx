@@ -51,17 +51,17 @@ export default function ContactsTable({
     return (
       <div
         className="flex flex-col items-center justify-center py-16 rounded-xl"
-        style={{ background: "var(--rk-surface)", border: "1px dashed var(--rk-border-md)" }}
+        style={{ background: "var(--wm-surface)", border: "1px dashed var(--wm-border-md)" }}
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-          stroke="var(--rk-text-sub)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+          stroke="var(--wm-text-sub)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
           className="mb-3">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
-        <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>No contacts yet</p>
-        <p className="text-xs mt-1" style={{ color: "var(--rk-text-sub)" }}>Add contacts or import a CSV</p>
+        <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>No contacts yet</p>
+        <p className="text-xs mt-1" style={{ color: "var(--wm-text-sub)" }}>Add contacts or import a CSV</p>
       </div>
     );
   }
@@ -75,7 +75,7 @@ export default function ContactsTable({
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
             width="13" height="13" viewBox="0 0 24 24" fill="none"
-            stroke="var(--rk-text-sub)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            stroke="var(--wm-text-sub)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
           >
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
@@ -92,19 +92,19 @@ export default function ContactsTable({
 
         {/* Page-size selector */}
   <div className="flex items-center gap-1.5 shrink-0 sm:ml-auto">
-          <span className="text-[11px] uppercase tracking-widest" style={{ color: "var(--rk-text-sub)" }}>
+          <span className="text-[11px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>
             Show
           </span>
-          <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--rk-border)" }}>
+          <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--wm-border)" }}>
             {PAGE_SIZE_OPTIONS.map((n) => (
               <button
                 key={n}
                 onClick={() => handlePageSizeChange(n)}
                 className="px-3 py-1.5 text-xs transition-colors"
                 style={{
-                  background: pageSize === n ? "rgba(212,168,83,0.12)" : "var(--rk-surface)",
-                  color:      pageSize === n ? "var(--rk-gold)"         : "var(--rk-text-muted)",
-                  borderRight: n !== 100 ? "1px solid var(--rk-border)" : "none",
+                  background: pageSize === n ? "rgba(43,122,95,0.12)" : "var(--wm-surface)",
+                  color:      pageSize === n ? "var(--wm-accent)"         : "var(--wm-text-muted)",
+                  borderRight: n !== 100 ? "1px solid var(--wm-border)" : "none",
                   fontWeight:  pageSize === n ? 600 : 400,
                   cursor: "pointer",
                   border: "none",
@@ -121,12 +121,12 @@ export default function ContactsTable({
       <div className="overflow-x-auto">
         <div
           className="rounded-xl overflow-hidden min-w-[520px]"
-          style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+          style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
         >
           {/* Header */}
           <div
             className="grid grid-cols-[1fr_1fr_auto] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-widest"
-            style={{ borderBottom: "1px solid var(--rk-border)", color: "var(--rk-text-sub)" }}
+            style={{ borderBottom: "1px solid var(--wm-border)", color: "var(--wm-text-sub)" }}
           >
             <span>Email / Name</span>
             <span>Company</span>
@@ -135,20 +135,20 @@ export default function ContactsTable({
 
           {/* Rows */}
           {slice.length > 0 ? (
-            <div className="divide-y divide-[var(--rk-border)]">
+            <div className="divide-y divide-[var(--wm-border)]">
               {slice.map((c) => (
                 <ContactRow key={c.id} contact={c} campaignId={campaignId} />
               ))}
             </div>
           ) : (
             <div className="py-12 text-center">
-              <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
-                No contacts match <span style={{ color: "var(--rk-gold)" }}>&quot;{query}&quot;</span>
+              <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
+                No contacts match <span style={{ color: "var(--wm-accent)" }}>&quot;{query}&quot;</span>
               </p>
               <button
                 onClick={() => handleQueryChange("")}
                 className="mt-2 text-xs underline"
-                style={{ color: "var(--rk-text-sub)", background: "none", border: "none", cursor: "pointer" }}
+                style={{ color: "var(--wm-text-sub)", background: "none", border: "none", cursor: "pointer" }}
               >
                 Clear search
               </button>
@@ -160,7 +160,7 @@ export default function ContactsTable({
       {/* ── Footer: count + pagination ───────────────────────────────────── */}
       <div className="flex items-center justify-between px-1">
         {/* Result count */}
-        <p className="text-xs" style={{ color: "var(--rk-text-sub)" }}>
+        <p className="text-xs" style={{ color: "var(--wm-text-sub)" }}>
           {filtered.length === contacts.length
             ? `${contacts.length} contact${contacts.length !== 1 ? "s" : ""}`
             : `${filtered.length} of ${contacts.length} contacts`}
@@ -179,7 +179,7 @@ export default function ContactsTable({
             {/* Page numbers */}
             {getPageNumbers(safePage, totalPages).map((n, i) =>
               n === "…" ? (
-                <span key={`ellipsis-${i}`} className="px-1 text-xs" style={{ color: "var(--rk-text-sub)" }}>…</span>
+                <span key={`ellipsis-${i}`} className="px-1 text-xs" style={{ color: "var(--wm-text-sub)" }}>…</span>
               ) : (
                 <PagBtn
                   key={n}
@@ -233,9 +233,9 @@ function PagBtn({
       aria-label={ariaLabel}
       className="min-w-[28px] h-7 px-1.5 rounded-md text-xs flex items-center justify-center transition-colors"
       style={{
-        background:  active    ? "rgba(212,168,83,0.15)" : "transparent",
-        color:       active    ? "var(--rk-gold)"        : disabled ? "var(--rk-text-sub)" : "var(--rk-text-muted)",
-        border:      active    ? "1px solid rgba(212,168,83,0.35)" : "1px solid transparent",
+        background:  active    ? "rgba(43,122,95,0.15)" : "transparent",
+        color:       active    ? "var(--wm-accent)"        : disabled ? "var(--wm-text-sub)" : "var(--wm-text-muted)",
+        border:      active    ? "1px solid rgba(43,122,95,0.35)" : "1px solid transparent",
         cursor:      disabled  ? "not-allowed" : "pointer",
         opacity:     disabled  ? 0.4 : 1,
         fontWeight:  active    ? 600 : 400,
@@ -263,19 +263,19 @@ function ContactRow({ contact: c, campaignId }: { contact: Contact; campaignId: 
       style={{ opacity: isPending ? 0.4 : 1 }}
     >
       <div className="min-w-0">
-        <div className="text-xs truncate" style={{ color: "var(--rk-text)" }}>{c.email}</div>
+        <div className="text-xs truncate" style={{ color: "var(--wm-text)" }}>{c.email}</div>
         {fullName && (
-          <div className="text-[11px] truncate mt-0.5" style={{ color: "var(--rk-text-muted)" }}>{fullName}</div>
+          <div className="text-[11px] truncate mt-0.5" style={{ color: "var(--wm-text-muted)" }}>{fullName}</div>
         )}
       </div>
-      <div className="text-xs truncate" style={{ color: "var(--rk-text-muted)" }}>
-        {c.company ?? <span style={{ color: "var(--rk-text-sub)" }}>—</span>}
+      <div className="text-xs truncate" style={{ color: "var(--wm-text-muted)" }}>
+        {c.company ?? <span style={{ color: "var(--wm-text-sub)" }}>—</span>}
       </div>
       <button
         onClick={handleDelete}
         disabled={isPending}
         className="p-1.5 rounded-md transition-colors"
-        style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--rk-text-sub)" }}
+        style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--wm-text-sub)" }}
         title="Remove contact"
         aria-label="Remove contact"
       >

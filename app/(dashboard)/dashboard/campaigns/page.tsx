@@ -2,10 +2,10 @@ import { getCampaigns } from "@/lib/supabase/campaigns";
 import Link from "next/link";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  draft:     { bg: "rgba(255,255,255,0.04)", color: "var(--rk-text-muted)", border: "rgba(255,255,255,0.1)" },
-  active:    { bg: "rgba(34,197,94,0.08)",   color: "#4ade80",              border: "rgba(34,197,94,0.2)"   },
-  paused:    { bg: "rgba(251,146,60,0.08)",  color: "#fb923c",              border: "rgba(251,146,60,0.2)"  },
-  completed: { bg: "rgba(99,102,241,0.08)",  color: "#818cf8",              border: "rgba(99,102,241,0.2)"  },
+  draft:     { bg: "rgba(100,116,139,0.08)", color: "var(--wm-text-muted)", border: "rgba(100,116,139,0.15)" },
+  active:    { bg: "rgba(43,122,95,0.10)",   color: "var(--wm-accent)",      border: "rgba(43,122,95,0.22)"  },
+  paused:    { bg: "rgba(217,119,6,0.08)",   color: "#d97706",               border: "rgba(217,119,6,0.2)"   },
+  completed: { bg: "rgba(99,102,241,0.08)",  color: "#6366f1",               border: "rgba(99,102,241,0.2)"  },
 };
 
 export default async function CampaignsPage() {
@@ -18,11 +18,11 @@ export default async function CampaignsPage() {
         <div>
           <h1
             className="text-3xl font-medium mb-1"
-            style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+            style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
           >
             Campaigns
           </h1>
-          <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
             {campaigns.length === 0
               ? "Create your first outreach campaign"
               : `${campaigns.length} campaign${campaigns.length !== 1 ? "s" : ""}`}
@@ -32,8 +32,8 @@ export default async function CampaignsPage() {
           <button
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
             style={{
-              background: "var(--rk-gold)",
-              color: "#0d0d0f",
+              background: "var(--wm-accent)",
+              color: "var(--wm-accent-text)",
               border: "none",
               cursor: "pointer",
             }}
@@ -59,29 +59,29 @@ export default async function CampaignsPage() {
         /* Empty state */
         <div
           className="rk-fade-up rk-delay-1 flex flex-col items-center justify-center py-24 rounded-xl"
-          style={{ background: "var(--rk-surface)", border: "1px dashed var(--rk-border-md)" }}
+          style={{ background: "var(--wm-surface)", border: "1px dashed var(--wm-border-md)" }}
         >
           <div
             className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
-            style={{ background: "var(--rk-gold-dim)", border: "1px solid rgba(212,168,83,0.2)" }}
+            style={{ background: "var(--wm-accent-dim)", border: "1px solid rgba(43,122,95,0.2)" }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d4a853" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--wm-accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
             </svg>
           </div>
           <h3
             className="text-lg font-medium mb-2"
-            style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+            style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
           >
             No campaigns yet
           </h3>
-          <p className="text-sm mb-6 text-center max-w-xs" style={{ color: "var(--rk-text-muted)" }}>
+          <p className="text-sm mb-6 text-center max-w-xs" style={{ color: "var(--wm-text-muted)" }}>
             Create a campaign to start organising your outreach contacts and emails.
           </p>
           <Link href="/dashboard/campaigns/new">
             <button
               className="px-5 py-2.5 rounded-lg text-sm font-medium"
-              style={{ background: "var(--rk-gold)", color: "#0d0d0f" }}
+              style={{ background: "var(--wm-accent)", color: "var(--wm-accent-text)" }}
             >
               Create first campaign
             </button>
@@ -97,15 +97,15 @@ export default async function CampaignsPage() {
                 <div
                   className="flex items-center gap-4 px-5 py-4 rounded-xl cursor-pointer transition-all group"
                   style={{
-                    background: "var(--rk-surface)",
-                    border: "1px solid var(--rk-border)",
+                    background: "var(--wm-surface)",
+                    border: "1px solid var(--wm-border)",
                     animationDelay: `${i * 0.04}s`,
                   }}
                 >
                   {/* Number */}
                   <div
                     className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-mono font-bold"
-                    style={{ background: "var(--rk-gold-dim)", color: "var(--rk-gold)" }}
+                    style={{ background: "var(--wm-accent-dim)", color: "var(--wm-accent)" }}
                   >
                     {String(i + 1).padStart(2, "0")}
                   </div>
@@ -113,13 +113,13 @@ export default async function CampaignsPage() {
                   {/* Name + desc */}
                   <div className="flex-1 min-w-0">
                     <div
-                      className="text-sm font-medium mb-0.5 truncate transition-colors group-hover:text-[var(--rk-gold-light)]"
-                      style={{ color: "var(--rk-text)" }}
+                      className="text-sm font-medium mb-0.5 truncate transition-colors group-hover:text-[var(--wm-accent)]"
+                      style={{ color: "var(--wm-text)" }}
                     >
                       {c.name}
                     </div>
                     {c.description && (
-                      <div className="text-xs truncate" style={{ color: "var(--rk-text-muted)" }}>
+                      <div className="text-xs truncate" style={{ color: "var(--wm-text-muted)" }}>
                         {c.description}
                       </div>
                     )}
@@ -129,11 +129,11 @@ export default async function CampaignsPage() {
                   <div className="shrink-0 text-center hidden sm:block">
                     <div
                       className="text-lg font-semibold"
-                      style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                      style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
                     >
                       {c.contact_count ?? 0}
                     </div>
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--rk-text-sub)" }}>
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--wm-text-sub)" }}>
                       contacts
                     </div>
                   </div>

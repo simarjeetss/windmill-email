@@ -64,7 +64,7 @@ export default function AnalyticsRangeSelector({
           max={365}
           value={customRange}
           onChange={(event) => setCustomRange(event.target.value)}
-          className="h-9 w-20 rounded-md border border-white/10 bg-[var(--rk-surface-2)] px-2 text-xs text-[var(--rk-text)]"
+          className="h-9 w-20 rounded-md border border-[var(--wm-border)] bg-[var(--wm-surface-2)] px-2 text-xs text-[var(--wm-text)]"
         />
         <Button size="sm" variant="outline" onClick={handleCustomApply}>
           Custom

@@ -29,7 +29,7 @@ export default function AddContactForm({ campaignId }: { campaignId: string }) {
   return (
     <div
       className="rounded-xl p-5"
-      style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+      style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Email */}
@@ -37,9 +37,9 @@ export default function AddContactForm({ campaignId }: { campaignId: string }) {
           <label
             htmlFor="contact-email"
             className="block text-xs uppercase tracking-widest"
-            style={{ color: "var(--rk-text-muted)" }}
+            style={{ color: "var(--wm-text-muted)" }}
           >
-            Email <span style={{ color: "var(--rk-gold)" }}>*</span>
+            Email <span style={{ color: "var(--wm-accent)" }}>*</span>
           </label>
           <input
             id="contact-email"
@@ -57,7 +57,7 @@ export default function AddContactForm({ campaignId }: { campaignId: string }) {
             <label
               htmlFor="contact-first"
               className="block text-xs uppercase tracking-widest"
-              style={{ color: "var(--rk-text-muted)" }}
+              style={{ color: "var(--wm-text-muted)" }}
             >
               First name
             </label>
@@ -73,7 +73,7 @@ export default function AddContactForm({ campaignId }: { campaignId: string }) {
             <label
               htmlFor="contact-last"
               className="block text-xs uppercase tracking-widest"
-              style={{ color: "var(--rk-text-muted)" }}
+              style={{ color: "var(--wm-text-muted)" }}
             >
               Last name
             </label>
@@ -92,7 +92,7 @@ export default function AddContactForm({ campaignId }: { campaignId: string }) {
           <label
             htmlFor="contact-company"
             className="block text-xs uppercase tracking-widest"
-            style={{ color: "var(--rk-text-muted)" }}
+            style={{ color: "var(--wm-text-muted)" }}
           >
             Company
           </label>
@@ -117,7 +117,7 @@ export default function AddContactForm({ campaignId }: { campaignId: string }) {
         {success && (
           <div
             className="rk-fade-in px-3 py-2.5 rounded-lg text-xs flex items-center gap-2"
-            style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#4ade80" }}
+            style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--wm-accent)" }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />

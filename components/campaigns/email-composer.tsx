@@ -309,29 +309,29 @@ export default function EmailComposer({
             className="rk-fade-up w-full max-w-sm mx-4 rounded-2xl overflow-hidden"
             style={{
               background: "linear-gradient(160deg, #1a1610 0%, #141210 100%)",
-              border: "1px solid rgba(212,168,83,0.3)",
+              border: "1px solid rgba(43,122,95,0.3)",
               boxShadow: "0 24px 64px rgba(0,0,0,0.8)",
             }}
           >
             {/* Gold top bar */}
-            <div className="h-[3px]" style={{ background: "linear-gradient(90deg, var(--rk-gold) 0%, rgba(212,168,83,0.3) 100%)" }} />
+            <div className="h-[3px]" style={{ background: "linear-gradient(90deg, var(--wm-accent) 0%, rgba(43,122,95,0.3) 100%)" }} />
 
             <div className="p-6 flex flex-col gap-5">
               {/* Icon + heading */}
               <div className="flex items-start gap-3">
                 <div
                   className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
-                  style={{ background: "rgba(212,168,83,0.12)", border: "1px solid rgba(212,168,83,0.25)" }}
+                  style={{ background: "rgba(43,122,95,0.12)", border: "1px solid rgba(43,122,95,0.25)" }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--rk-gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--wm-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                   </svg>
                 </div>
                 <div>
-                  <p className="font-semibold text-sm mb-0.5" style={{ color: "#f0ede8", fontFamily: "var(--font-display)" }}>
+                  <p className="font-semibold text-sm mb-0.5" style={{ color: "var(--wm-text)", fontFamily: "var(--font-display)" }}>
                     AI generation limit reached
                   </p>
-                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--wm-text-sub)" }}>
                     You&apos;ve used all 15 free AI generations. Upgrade to a paid plan for unlimited AI drafting and personalization.
                   </p>
                 </div>
@@ -346,10 +346,10 @@ export default function EmailComposer({
                   "10,000+ emails per month",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--rk-gold)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--wm-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
-                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{f}</span>
+                    <span className="text-xs" style={{ color: "var(--wm-text-muted)" }}>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -362,8 +362,8 @@ export default function EmailComposer({
                   rel="noopener noreferrer"
                   className="flex-1 text-center text-sm font-semibold py-2.5 rounded-xl"
                   style={{
-                    background: "var(--rk-gold)",
-                    color: "#0d0d0f",
+                    background: "var(--wm-accent)",
+                    color: "var(--wm-accent-text)",
                     textDecoration: "none",
                   }}
                 >
@@ -373,9 +373,9 @@ export default function EmailComposer({
                   onClick={() => setShowUpgradeModal(false)}
                   className="flex-1 text-sm py-2.5 rounded-xl"
                   style={{
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "rgba(255,255,255,0.5)",
+                    background: "var(--wm-border)",
+                    border: "1px solid var(--wm-border-md)",
+                    color: "var(--wm-text-muted)",
                     cursor: "pointer",
                   }}
                 >
@@ -397,24 +397,24 @@ export default function EmailComposer({
           <div
             className="rk-fade-up w-full max-w-sm mx-4 rounded-2xl p-5 flex flex-col gap-4"
             style={{
-              background: "var(--rk-surface, #141417)",
-              border: "1px solid rgba(212,168,83,0.25)",
+              background: "var(--wm-surface, #141417)",
+              border: "1px solid rgba(43,122,95,0.25)",
               boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
             }}
           >
             {/* Header */}
             <div className="flex items-center gap-2">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--rk-gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--wm-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
               </svg>
-              <span className="text-sm font-semibold" style={{ color: "var(--rk-text)", fontFamily: "var(--font-display, serif)" }}>
+              <span className="text-sm font-semibold" style={{ color: "var(--wm-text)", fontFamily: "var(--font-display, serif)" }}>
                 Save as template
               </span>
             </div>
 
             {/* Name input */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] uppercase tracking-widest" style={{ color: "var(--rk-text-sub)" }}>
+              <label className="text-[11px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>
                 Template name
               </label>
               <input
@@ -428,10 +428,10 @@ export default function EmailComposer({
                 maxLength={80}
                 className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all"
                 style={{
-                  background: "var(--rk-surface-2, #1a1a1f)",
-                  border: saveModalError ? "1px solid rgba(239,68,68,0.5)" : "1px solid var(--rk-border-md, rgba(255,255,255,0.1))",
-                  color: "var(--rk-text)",
-                  caretColor: "var(--rk-gold)",
+                  background: "var(--wm-surface-2, #1a1a1f)",
+                  border: saveModalError ? "1px solid rgba(239,68,68,0.5)" : "1px solid var(--wm-border-md, var(--wm-border-md))",
+                  color: "var(--wm-text)",
+                  caretColor: "var(--wm-accent)",
                 }}
               />
               {saveModalError && (
@@ -442,12 +442,12 @@ export default function EmailComposer({
             {/* Preview of what will be saved */}
             <div
               className="px-3 py-2.5 rounded-xl text-xs space-y-1"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--rk-border)" }}
+              style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}
             >
-              <div className="truncate" style={{ color: "var(--rk-text-muted)" }}>
-                <span style={{ color: "var(--rk-text-sub)" }}>Subject: </span>{subject || <em style={{ opacity: 0.5 }}>empty</em>}
+              <div className="truncate" style={{ color: "var(--wm-text-muted)" }}>
+                <span style={{ color: "var(--wm-text-sub)" }}>Subject: </span>{subject || <em style={{ opacity: 0.5 }}>empty</em>}
               </div>
-              <div className="line-clamp-2 leading-relaxed" style={{ color: "var(--rk-text-sub)" }}>
+              <div className="line-clamp-2 leading-relaxed" style={{ color: "var(--wm-text-sub)" }}>
                 {body.slice(0, 100)}{body.length > 100 ? "…" : ""}
               </div>
             </div>
@@ -457,7 +457,7 @@ export default function EmailComposer({
               <button
                 onClick={() => setShowSaveModal(false)}
                 className="px-3 py-2 rounded-xl text-xs font-medium transition-all"
-                style={{ background: "transparent", border: "1px solid var(--rk-border)", color: "var(--rk-text-muted)", cursor: "pointer" }}
+                style={{ background: "transparent", border: "1px solid var(--wm-border)", color: "var(--wm-text-muted)", cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -467,8 +467,8 @@ export default function EmailComposer({
                 disabled={isSaving}
                 className="px-4 py-2 rounded-xl text-xs font-semibold transition-all"
                 style={{
-                  background: isSaving ? "rgba(212,168,83,0.4)" : "var(--rk-gold)",
-                  color: "#0d0d0f",
+                  background: isSaving ? "rgba(43,122,95,0.4)" : "var(--wm-accent)",
+                  color: "var(--wm-accent-text)",
                   border: "none",
                   cursor: isSaving ? "not-allowed" : "pointer",
                   opacity: isSaving ? 0.7 : 1,
@@ -490,33 +490,33 @@ export default function EmailComposer({
           <div
             className="rk-fade-up w-full max-w-sm mx-4 rounded-2xl p-5 flex flex-col gap-4"
             style={{
-              background: "var(--rk-surface, #141417)",
-              border: "1px solid rgba(212,168,83,0.25)",
+              background: "var(--wm-surface, #141417)",
+              border: "1px solid rgba(43,122,95,0.25)",
               boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
             }}
           >
             <div className="flex items-center gap-2">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--rk-gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--wm-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 2 11 13" />
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
-              <span className="text-sm font-semibold" style={{ color: "var(--rk-text)", fontFamily: "var(--font-display, serif)" }}>
+              <span className="text-sm font-semibold" style={{ color: "var(--wm-text)", fontFamily: "var(--font-display, serif)" }}>
                 Send campaign now
               </span>
             </div>
 
-            <div className="text-xs" style={{ color: "var(--rk-text-muted)" }}>
-              This will send to <strong style={{ color: "var(--rk-text)" }}>{previewContacts.length}</strong> contact{previewContacts.length === 1 ? "" : "s"}.
+            <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
+              This will send to <strong style={{ color: "var(--wm-text)" }}>{previewContacts.length}</strong> contact{previewContacts.length === 1 ? "" : "s"}.
             </div>
 
             <div
               className="px-3 py-2.5 rounded-xl text-xs space-y-1"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--rk-border)" }}
+              style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}
             >
-              <div className="truncate" style={{ color: "var(--rk-text-muted)" }}>
-                <span style={{ color: "var(--rk-text-sub)" }}>Subject: </span>{subject || <em style={{ opacity: 0.5 }}>empty</em>}
+              <div className="truncate" style={{ color: "var(--wm-text-muted)" }}>
+                <span style={{ color: "var(--wm-text-sub)" }}>Subject: </span>{subject || <em style={{ opacity: 0.5 }}>empty</em>}
               </div>
-              <div className="line-clamp-2 leading-relaxed" style={{ color: "var(--rk-text-sub)" }}>
+              <div className="line-clamp-2 leading-relaxed" style={{ color: "var(--wm-text-sub)" }}>
                 {body.slice(0, 100)}{body.length > 100 ? "…" : ""}
               </div>
             </div>
@@ -534,7 +534,7 @@ export default function EmailComposer({
               <button
                 onClick={() => setShowSendModal(false)}
                 className="px-3 py-2 rounded-xl text-xs font-medium transition-all"
-                style={{ background: "transparent", border: "1px solid var(--rk-border)", color: "var(--rk-text-muted)", cursor: "pointer" }}
+                style={{ background: "transparent", border: "1px solid var(--wm-border)", color: "var(--wm-text-muted)", cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -544,8 +544,8 @@ export default function EmailComposer({
                 disabled={isSending}
                 className="px-4 py-2 rounded-xl text-xs font-semibold transition-all"
                 style={{
-                  background: isSending ? "rgba(212,168,83,0.4)" : "var(--rk-gold)",
-                  color: "#0d0d0f",
+                  background: isSending ? "rgba(43,122,95,0.4)" : "var(--wm-accent)",
+                  color: "var(--wm-accent-text)",
                   border: "none",
                   cursor: isSending ? "not-allowed" : "pointer",
                   opacity: isSending ? 0.7 : 1,
@@ -562,8 +562,8 @@ export default function EmailComposer({
       <div
         className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl flex-wrap"
         style={{
-          background: profileMissing ? "rgba(212,168,83,0.05)" : "var(--rk-surface)",
-          border: profileMissing ? "1px solid rgba(212,168,83,0.25)" : "1px solid var(--rk-border)",
+          background: profileMissing ? "rgba(43,122,95,0.05)" : "var(--wm-surface)",
+          border: profileMissing ? "1px solid rgba(43,122,95,0.25)" : "1px solid var(--wm-border)",
         }}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -571,9 +571,9 @@ export default function EmailComposer({
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold uppercase"
             style={{
-              background: senderName ? "var(--rk-gold-dim)" : "rgba(255,255,255,0.04)",
-              border: senderName ? "1px solid rgba(212,168,83,0.3)" : "1px solid var(--rk-border)",
-              color: senderName ? "var(--rk-gold)" : "var(--rk-text-sub)",
+              background: senderName ? "var(--wm-accent-dim)" : "var(--wm-surface-2)",
+              border: senderName ? "1px solid rgba(43,122,95,0.3)" : "1px solid var(--wm-border)",
+              color: senderName ? "var(--wm-accent)" : "var(--wm-text-sub)",
             }}
           >
             {senderName ? senderName[0] : "?"}
@@ -581,20 +581,20 @@ export default function EmailComposer({
           <div className="min-w-0">
             {senderName ? (
               <>
-                <div className="text-xs font-medium truncate" style={{ color: "var(--rk-text)" }}>
+                <div className="text-xs font-medium truncate" style={{ color: "var(--wm-text)" }}>
                   {senderName}
                   {senderCompany && (
-                    <span style={{ color: "var(--rk-text-sub)" }}> · {senderCompany}</span>
+                    <span style={{ color: "var(--wm-text-sub)" }}> · {senderCompany}</span>
                   )}
                 </div>
-                <div className="text-[10px] mt-0.5" style={{ color: "var(--rk-text-sub)" }}>
+                <div className="text-[10px] mt-0.5" style={{ color: "var(--wm-text-sub)" }}>
                   Sending as —{" "}
-                  <code style={{ fontFamily: "monospace", color: "var(--rk-gold)" }}>{"{{sender_name}}"}</code>
+                  <code style={{ fontFamily: "monospace", color: "var(--wm-accent)" }}>{"{{sender_name}}"}</code>
                   {" "}resolves here
                 </div>
               </>
             ) : (
-              <div className="text-xs" style={{ color: "var(--rk-gold)" }}>
+              <div className="text-xs" style={{ color: "var(--wm-accent)" }}>
                 Set your sender profile so emails know who they&apos;re from
               </div>
             )}
@@ -609,9 +609,9 @@ export default function EmailComposer({
             <button
               className="shrink-0 text-xs px-3 py-1.5 rounded-lg transition-all"
               style={{
-                background: profileMissing ? "rgba(212,168,83,0.1)" : "transparent",
-                border: profileMissing ? "1px solid rgba(212,168,83,0.3)" : "1px solid var(--rk-border)",
-                color: profileMissing ? "var(--rk-gold)" : "var(--rk-text-muted)",
+                background: profileMissing ? "rgba(43,122,95,0.1)" : "transparent",
+                border: profileMissing ? "1px solid rgba(43,122,95,0.3)" : "1px solid var(--wm-border)",
+                color: profileMissing ? "var(--wm-accent)" : "var(--wm-text-muted)",
                 cursor: "pointer",
                 fontWeight: profileMissing ? 500 : 400,
               }}
@@ -627,7 +627,7 @@ export default function EmailComposer({
         {/* Tab switcher */}
         <div
           className="flex rounded-lg overflow-hidden"
-          style={{ border: "1px solid var(--rk-border)", background: "var(--rk-surface)" }}
+          style={{ border: "1px solid var(--wm-border)", background: "var(--wm-surface)" }}
         >
           {(["compose", "preview"] as const).map((t) => (
             <button
@@ -635,12 +635,12 @@ export default function EmailComposer({
               onClick={() => setTab(t)}
               className="px-4 py-1.5 text-xs capitalize transition-colors"
               style={{
-                background:  tab === t ? "rgba(212,168,83,0.12)" : "transparent",
-                color:       tab === t ? "var(--rk-gold)"        : "var(--rk-text-muted)",
+                background:  tab === t ? "rgba(43,122,95,0.12)" : "transparent",
+                color:       tab === t ? "var(--wm-accent)"        : "var(--wm-text-muted)",
                 fontWeight:  tab === t ? 600 : 400,
                 border:      "none",
                 cursor:      "pointer",
-                borderRight: t === "compose" ? "1px solid var(--rk-border)" : "none",
+                borderRight: t === "compose" ? "1px solid var(--wm-border)" : "none",
               }}
             >
               {t}
@@ -661,9 +661,9 @@ export default function EmailComposer({
             disabled={isGenerating || isSaving}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
-              background: isGenerating ? "rgba(212,168,83,0.06)" : "rgba(212,168,83,0.1)",
-              border: "1px solid rgba(212,168,83,0.3)",
-              color: "var(--rk-gold)",
+              background: isGenerating ? "rgba(43,122,95,0.06)" : "rgba(43,122,95,0.1)",
+              border: "1px solid rgba(43,122,95,0.3)",
+              color: "var(--wm-accent)",
               cursor: isGenerating ? "not-allowed" : "pointer",
               opacity: isGenerating ? 0.7 : 1,
             }}
@@ -689,7 +689,7 @@ export default function EmailComposer({
             style={{
               background: "rgba(212, 168, 83, 0.1)",
               border: "1px solid rgba(212, 168, 83, 0.3)",
-              color: "var(--rk-gold)",
+              color: "var(--wm-accent)",
               cursor: isSending ? "not-allowed" : "pointer",
               opacity: isSending ? 0.6 : 1,
             }}
@@ -703,9 +703,9 @@ export default function EmailComposer({
             disabled={isSaving || isGenerating || !isDirty}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
-              background: "var(--rk-surface)",
-              border: "1px solid var(--rk-border)",
-              color: isDirty ? "var(--rk-text-muted)" : "var(--rk-text-sub)",
+              background: "var(--wm-surface)",
+              border: "1px solid var(--wm-border)",
+              color: isDirty ? "var(--wm-text-muted)" : "var(--wm-text-sub)",
               cursor: (!isDirty || isSaving) ? "not-allowed" : "pointer",
               opacity: (!isDirty || isSaving) ? 0.5 : 1,
             }}
@@ -729,7 +729,7 @@ export default function EmailComposer({
       {saveStatus === "saved" && (
         <div
           className="rk-fade-in px-4 py-2.5 rounded-lg text-xs flex items-center gap-2"
-          style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#4ade80" }}
+          style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--wm-accent)" }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           Template saved
@@ -747,7 +747,7 @@ export default function EmailComposer({
       {sendStatus === "sent" && (
         <div
           className="rk-fade-in px-4 py-2.5 rounded-lg text-xs flex items-center gap-2"
-          style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#4ade80" }}
+          style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--wm-accent)" }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           {sendSummary
@@ -768,12 +768,12 @@ export default function EmailComposer({
       {tab === "compose" && (
         <div
           className="rounded-xl overflow-hidden"
-          style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+          style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
         >
           {/* Subject */}
-          <div style={{ borderBottom: "1px solid var(--rk-border)" }}>
+          <div style={{ borderBottom: "1px solid var(--wm-border)" }}>
             <div className="flex items-center gap-3 px-4 py-3">
-              <span className="text-[10px] uppercase tracking-widest shrink-0 w-12" style={{ color: "var(--rk-text-sub)" }}>
+              <span className="text-[10px] uppercase tracking-widest shrink-0 w-12" style={{ color: "var(--wm-text-sub)" }}>
                 Subject
               </span>
               <input
@@ -782,12 +782,12 @@ export default function EmailComposer({
                 onChange={(e) => { setSubject(e.target.value); setSaveStatus("idle"); setSendStatus("idle"); }}
                 placeholder="Your subject line…"
                 className="flex-1 bg-transparent text-sm outline-none"
-                style={{ color: "var(--rk-text)", caretColor: "var(--rk-gold)" }}
+                style={{ color: "var(--wm-text)", caretColor: "var(--wm-accent)" }}
                 aria-label="Email subject"
               />
               <span
                 className="text-[10px] shrink-0"
-                style={{ color: subject.length > 60 ? "#f87171" : "var(--rk-text-sub)" }}
+                style={{ color: subject.length > 60 ? "#f87171" : "var(--wm-text-sub)" }}
               >
                 {subject.length}/60
               </span>
@@ -804,7 +804,7 @@ export default function EmailComposer({
               placeholder={"Write your email body here, or press / to write with AI…"}
               rows={14}
               className="w-full bg-transparent text-sm outline-none resize-none px-4 py-4 leading-relaxed"
-              style={{ color: "var(--rk-text)", caretColor: "var(--rk-gold)" }}
+              style={{ color: "var(--wm-text)", caretColor: "var(--wm-accent)" }}
               aria-label="Email body"
             />
 
@@ -813,19 +813,19 @@ export default function EmailComposer({
               <div
                 className="rk-fade-up absolute inset-x-0 bottom-0 z-10 rounded-b-xl overflow-hidden"
                 style={{
-                  background: "var(--rk-surface-2, #1a1a1f)",
-                  borderTop: "1px solid rgba(212,168,83,0.25)",
+                  background: "var(--wm-surface-2, #1a1a1f)",
+                  borderTop: "1px solid rgba(43,122,95,0.25)",
                   boxShadow: "0 -8px 32px rgba(0,0,0,0.5)",
                 }}
               >
                 {/* Panel header */}
                 <div
                   className="flex items-center justify-between px-4 pt-3 pb-2"
-                  style={{ borderBottom: "1px solid rgba(212,168,83,0.12)" }}
+                  style={{ borderBottom: "1px solid rgba(43,122,95,0.12)" }}
                 >
                   <div className="flex items-center gap-2">
                     <SparkleIcon />
-                    <span className="text-xs font-semibold" style={{ color: "var(--rk-gold)", fontFamily: "var(--font-display, serif)" }}>
+                    <span className="text-xs font-semibold" style={{ color: "var(--wm-accent)", fontFamily: "var(--font-display, serif)" }}>
                       Write with AI
                     </span>
                   </div>
@@ -833,7 +833,7 @@ export default function EmailComposer({
                     {/* Mode toggle */}
                     <div
                       className="flex rounded-md overflow-hidden"
-                      style={{ border: "1px solid rgba(212,168,83,0.2)", background: "rgba(0,0,0,0.2)" }}
+                      style={{ border: "1px solid rgba(43,122,95,0.2)", background: "rgba(0,0,0,0.2)" }}
                     >
                       {(["prompt", "polish"] as const).map((m) => (
                         <button
@@ -841,12 +841,12 @@ export default function EmailComposer({
                           onClick={() => setAiWriterMode(m)}
                           className="px-3 py-1 text-[11px] capitalize transition-colors"
                           style={{
-                            background:  aiWriterMode === m ? "rgba(212,168,83,0.15)" : "transparent",
-                            color:       aiWriterMode === m ? "var(--rk-gold)"        : "var(--rk-text-sub)",
+                            background:  aiWriterMode === m ? "rgba(43,122,95,0.15)" : "transparent",
+                            color:       aiWriterMode === m ? "var(--wm-accent)"        : "var(--wm-text-sub)",
                             fontWeight:  aiWriterMode === m ? 600                     : 400,
                             border:      "none",
                             cursor:      "pointer",
-                            borderRight: m === "prompt" ? "1px solid rgba(212,168,83,0.2)" : "none",
+                            borderRight: m === "prompt" ? "1px solid rgba(43,122,95,0.2)" : "none",
                           }}
                         >
                           {m === "prompt" ? "From prompt" : "Polish draft"}
@@ -860,8 +860,8 @@ export default function EmailComposer({
                       className="w-6 h-6 rounded flex items-center justify-center transition-colors"
                       style={{
                         background: "transparent",
-                        border: "1px solid var(--rk-border)",
-                        color: "var(--rk-text-sub)",
+                        border: "1px solid var(--wm-border)",
+                        color: "var(--wm-text-sub)",
                         cursor: "pointer",
                         fontSize: "14px",
                         lineHeight: 1,
@@ -887,8 +887,8 @@ export default function EmailComposer({
                     rows={4}
                     className="w-full bg-transparent text-sm outline-none resize-none leading-relaxed"
                     style={{
-                      color: "var(--rk-text-muted)",
-                      caretColor: "var(--rk-gold)",
+                      color: "var(--wm-text-muted)",
+                      caretColor: "var(--wm-accent)",
                     }}
                     aria-label="AI writer prompt"
                   />
@@ -907,9 +907,9 @@ export default function EmailComposer({
                 {/* Footer */}
                 <div
                   className="flex items-center justify-between px-4 py-2.5"
-                  style={{ borderTop: "1px solid rgba(212,168,83,0.1)" }}
+                  style={{ borderTop: "1px solid rgba(43,122,95,0.1)" }}
                 >
-                  <span className="text-[10px]" style={{ color: "var(--rk-text-sub)" }}>
+                  <span className="text-[10px]" style={{ color: "var(--wm-text-sub)" }}>
                     ⌘↵ to generate · Esc to dismiss
                   </span>
                   <button
@@ -919,12 +919,12 @@ export default function EmailComposer({
                     className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={{
                       background: isPolishing || !aiWriterPrompt.trim()
-                        ? "rgba(212,168,83,0.06)"
-                        : "rgba(212,168,83,0.15)",
-                      border: "1px solid rgba(212,168,83,0.35)",
+                        ? "rgba(43,122,95,0.06)"
+                        : "rgba(43,122,95,0.15)",
+                      border: "1px solid rgba(43,122,95,0.35)",
                       color: isPolishing || !aiWriterPrompt.trim()
-                        ? "var(--rk-text-sub)"
-                        : "var(--rk-gold)",
+                        ? "var(--wm-text-sub)"
+                        : "var(--wm-accent)",
                       cursor: isPolishing || !aiWriterPrompt.trim() ? "not-allowed" : "pointer",
                     }}
                   >
@@ -949,7 +949,7 @@ export default function EmailComposer({
               <button
                 onClick={openAiWriter}
                 className="absolute bottom-3 right-4 flex items-center gap-1.5 text-[10px] transition-opacity opacity-40 hover:opacity-80"
-                style={{ color: "var(--rk-text-sub)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                style={{ color: "var(--wm-text-sub)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 tabIndex={-1}
                 aria-hidden="true"
               >
@@ -962,11 +962,11 @@ export default function EmailComposer({
           {/* Variable chips */}
           <div
             className="px-4 py-3 space-y-2"
-            style={{ borderTop: "1px solid var(--rk-border)" }}
+            style={{ borderTop: "1px solid var(--wm-border)" }}
           >
             {/* Recipient tokens */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] uppercase tracking-widest w-16 shrink-0" style={{ color: "var(--rk-text-sub)" }}>
+              <span className="text-[10px] uppercase tracking-widest w-16 shrink-0" style={{ color: "var(--wm-text-sub)" }}>
                 Recipient
               </span>
               {CONTACT_VARIABLES.map((v) => (
@@ -975,9 +975,9 @@ export default function EmailComposer({
                   onClick={() => insertVariable(v)}
                   className="text-[11px] px-2 py-0.5 rounded-md font-mono transition-colors"
                   style={{
-                    background: "rgba(212,168,83,0.08)",
-                    border: "1px solid rgba(212,168,83,0.2)",
-                    color: "var(--rk-gold)",
+                    background: "rgba(43,122,95,0.08)",
+                    border: "1px solid rgba(43,122,95,0.2)",
+                    color: "var(--wm-accent)",
                     cursor: "pointer",
                   }}
                 >
@@ -987,7 +987,7 @@ export default function EmailComposer({
             </div>
             {/* Sender tokens — auto-resolved from profile */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] uppercase tracking-widest w-16 shrink-0" style={{ color: "var(--rk-text-sub)" }}>
+              <span className="text-[10px] uppercase tracking-widest w-16 shrink-0" style={{ color: "var(--wm-text-sub)" }}>
                 Sender
               </span>
               {SENDER_VARIABLES.map((v) => {
@@ -998,16 +998,16 @@ export default function EmailComposer({
                       onClick={() => insertVariable(v)}
                       className="text-[11px] px-2 py-0.5 rounded-md font-mono transition-colors"
                       style={{
-                        background: resolved ? "rgba(212,168,83,0.08)" : "rgba(255,255,255,0.03)",
-                        border: resolved ? "1px solid rgba(212,168,83,0.2)" : "1px solid rgba(255,255,255,0.08)",
-                        color: resolved ? "var(--rk-gold)" : "var(--rk-text-sub)",
+                        background: resolved ? "rgba(43,122,95,0.08)" : "var(--wm-surface-2)",
+                        border: resolved ? "1px solid rgba(43,122,95,0.2)" : "1px solid var(--wm-border)",
+                        color: resolved ? "var(--wm-accent)" : "var(--wm-text-sub)",
                         cursor: "pointer",
                       }}
                     >
                       {v}
                     </button>
                     {resolved && (
-                      <span className="text-[10px]" style={{ color: "var(--rk-text-sub)" }}>
+                      <span className="text-[10px]" style={{ color: "var(--wm-text-sub)" }}>
                         → {resolved}
                       </span>
                     )}
@@ -1022,9 +1022,9 @@ export default function EmailComposer({
                     <button
                       className="text-[10px] px-2 py-0.5 rounded-md transition-colors"
                       style={{
-                        background: "rgba(212,168,83,0.06)",
-                        border: "1px dashed rgba(212,168,83,0.3)",
-                        color: "var(--rk-gold)",
+                        background: "rgba(43,122,95,0.06)",
+                        border: "1px dashed rgba(43,122,95,0.3)",
+                        color: "var(--wm-accent)",
                         cursor: "pointer",
                       }}
                     >
@@ -1044,7 +1044,7 @@ export default function EmailComposer({
           {/* Contact picker */}
           {previewContacts.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-[11px]" style={{ color: "var(--rk-text-sub)" }}>Preview as:</span>
+              <span className="text-[11px]" style={{ color: "var(--wm-text-sub)" }}>Preview as:</span>
               <div className="flex gap-1.5 flex-wrap">
                 {previewContacts.slice(0, 5).map((c, i) => (
                   <button
@@ -1052,9 +1052,9 @@ export default function EmailComposer({
                     onClick={() => setPreviewIdx(i)}
                     className="text-[11px] px-2.5 py-1 rounded-full transition-colors"
                     style={{
-                      background:  previewIdx === i ? "rgba(212,168,83,0.12)" : "var(--rk-surface)",
-                      border:      previewIdx === i ? "1px solid rgba(212,168,83,0.35)" : "1px solid var(--rk-border)",
-                      color:       previewIdx === i ? "var(--rk-gold)" : "var(--rk-text-muted)",
+                      background:  previewIdx === i ? "rgba(43,122,95,0.12)" : "var(--wm-surface)",
+                      border:      previewIdx === i ? "1px solid rgba(43,122,95,0.35)" : "1px solid var(--wm-border)",
+                      color:       previewIdx === i ? "var(--wm-accent)" : "var(--wm-text-muted)",
                       cursor:      "pointer",
                       fontWeight:  previewIdx === i ? 600 : 400,
                     }}
@@ -1069,17 +1069,17 @@ export default function EmailComposer({
           {/* Rendered preview */}
           <div
             className="rounded-xl overflow-hidden"
-            style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+            style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
           >
             {/* Subject preview */}
             <div
               className="px-5 py-3.5"
-              style={{ borderBottom: "1px solid var(--rk-border)" }}
+              style={{ borderBottom: "1px solid var(--wm-border)" }}
             >
-              <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--rk-text-sub)" }}>Subject</div>
-              <div className="text-sm font-medium" style={{ color: "var(--rk-text)" }}>
+              <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--wm-text-sub)" }}>Subject</div>
+              <div className="text-sm font-medium" style={{ color: "var(--wm-text)" }}>
                 {subject ? applyPreview(subject, previewContact, profile) : (
-                  <span style={{ color: "var(--rk-text-sub)", fontStyle: "italic" }}>No subject yet</span>
+                  <span style={{ color: "var(--wm-text-sub)", fontStyle: "italic" }}>No subject yet</span>
                 )}
               </div>
             </div>
@@ -1089,13 +1089,13 @@ export default function EmailComposer({
               {body ? (
                 <div
                   className="text-sm leading-relaxed whitespace-pre-wrap"
-                  style={{ color: "var(--rk-text-muted)" }}
+                  style={{ color: "var(--wm-text-muted)" }}
                 >
                   {applyPreview(body, previewContact, profile)}
                 </div>
               ) : (
                 <div className="py-8 text-center">
-                  <p className="text-sm" style={{ color: "var(--rk-text-sub)", fontStyle: "italic" }}>
+                  <p className="text-sm" style={{ color: "var(--wm-text-sub)", fontStyle: "italic" }}>
                     No body yet — write something in the Compose tab
                   </p>
                 </div>
@@ -1107,9 +1107,9 @@ export default function EmailComposer({
           {(previewContact || profile) && (
             <div
               className="rounded-lg px-4 py-3"
-              style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+              style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
             >
-              <div className="text-[10px] uppercase tracking-widest mb-2" style={{ color: "var(--rk-text-sub)" }}>
+              <div className="text-[10px] uppercase tracking-widest mb-2" style={{ color: "var(--wm-text-sub)" }}>
                 Variable values
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
@@ -1121,9 +1121,9 @@ export default function EmailComposer({
                   ["{{sender_company}}", profile?.company           || "not set"],
                 ].map(([k, v]) => (
                   <div key={k} className="flex items-center gap-1.5 text-[11px]">
-                    <code style={{ color: "var(--rk-gold)", fontFamily: "monospace" }}>{k}</code>
-                    <span style={{ color: "var(--rk-text-sub)" }}>→</span>
-                    <span style={{ color: (v === "not set") ? "#f87171" : "var(--rk-text-muted)" }}>{v}</span>
+                    <code style={{ color: "var(--wm-accent)", fontFamily: "monospace" }}>{k}</code>
+                    <span style={{ color: "var(--wm-text-sub)" }}>→</span>
+                    <span style={{ color: (v === "not set") ? "#f87171" : "var(--wm-text-muted)" }}>{v}</span>
                   </div>
                 ))}
               </div>
@@ -1131,7 +1131,7 @@ export default function EmailComposer({
           )}
 
           {previewContacts.length === 0 && (
-            <p className="text-xs text-center py-2" style={{ color: "var(--rk-text-sub)" }}>
+            <p className="text-xs text-center py-2" style={{ color: "var(--wm-text-sub)" }}>
               Add contacts to this campaign to preview personalised output
             </p>
           )}

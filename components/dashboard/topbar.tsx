@@ -28,16 +28,16 @@ export default function DashboardTopbar({ user }: { user: User }) {
     <header
       className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16 shrink-0"
       style={{
-        background: "var(--rk-surface)",
-        borderBottom: "1px solid var(--rk-border)",
+        background: "var(--wm-surface)",
+        borderBottom: "1px solid var(--wm-border)",
       }}
     >
       {/* Left — mobile menu + logo */}
       <div className="lg:hidden flex items-center gap-2">
-  <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
           <SheetTrigger
             className="flex items-center justify-center w-9 h-9 rounded-lg"
-            style={{ border: "1px solid var(--rk-border)", color: "var(--rk-text)" }}
+            style={{ border: "1px solid var(--wm-border)", color: "var(--wm-text)" }}
             aria-label="Open navigation"
           >
             <svg
@@ -55,15 +55,15 @@ export default function DashboardTopbar({ user }: { user: User }) {
               <line x1="4" y1="18" x2="20" y2="18" />
             </svg>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0" style={{ background: "var(--rk-surface)" }}>
-            <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--rk-border)" }}>
+          <SheetContent side="left" className="p-0" style={{ background: "var(--wm-surface)" }}>
+            <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--wm-border)" }}>
               <span
-                className="text-lg font-bold"
-                style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                className="text-lg font-semibold"
+                style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
               >
-                ReachKit<span style={{ color: "var(--rk-gold)" }}>.ai</span>
+                Windmill
               </span>
-              <p className="text-xs mt-1" style={{ color: "var(--rk-text-muted)" }}>
+              <p className="text-xs mt-1" style={{ color: "var(--wm-text-muted)" }}>
                 {user.email}
               </p>
             </div>
@@ -77,7 +77,7 @@ export default function DashboardTopbar({ user }: { user: User }) {
                 >
                   <div
                     className="px-3 py-2 rounded-lg text-sm"
-                    style={{ color: "var(--rk-text)", border: "1px solid transparent" }}
+                    style={{ color: "var(--wm-text)", border: "1px solid transparent" }}
                   >
                     {item.label}
                   </div>
@@ -87,37 +87,37 @@ export default function DashboardTopbar({ user }: { user: User }) {
           </SheetContent>
         </Sheet>
         <span
-          className="text-lg font-bold"
-          style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+          className="text-[15px] font-semibold"
+          style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
         >
-          ReachKit<span style={{ color: "var(--rk-gold)" }}>.ai</span>
+          Windmill
         </span>
       </div>
 
       {/* Left — desktop greeting */}
       <div className="hidden lg:block">
-        <span className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+        <span className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
           Good day,{" "}
-          <span style={{ color: "var(--rk-text)" }}>
+          <span style={{ color: "var(--wm-text)" }}>
             {user.email?.split("@")[0]}
           </span>
         </span>
       </div>
 
       {/* Right */}
-  <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Status badge */}
         <div
           className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs"
           style={{
-            background: "rgba(34,197,94,0.08)",
-            border: "1px solid rgba(34,197,94,0.2)",
-            color: "#4ade80",
+            background: "var(--wm-accent-dim)",
+            border: "1px solid rgba(43,122,95,0.18)",
+            color: "var(--wm-accent)",
           }}
         >
           <span
             className="w-1.5 h-1.5 rounded-full"
-            style={{ background: "#4ade80" }}
+            style={{ background: "var(--wm-accent)" }}
           />
           Active
         </div>
@@ -129,9 +129,9 @@ export default function DashboardTopbar({ user }: { user: User }) {
         <div
           className="flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold uppercase"
           style={{
-            background: "var(--rk-gold-dim)",
-            border: "1px solid rgba(212,168,83,0.3)",
-            color: "var(--rk-gold)",
+            background: "var(--wm-accent-dim)",
+            border: "1px solid rgba(43,122,95,0.2)",
+            color: "var(--wm-accent)",
           }}
         >
           {user.email?.[0]}
@@ -144,8 +144,8 @@ export default function DashboardTopbar({ user }: { user: User }) {
           className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all"
           style={{
             background: "transparent",
-            border: "1px solid var(--rk-border)",
-            color: "var(--rk-text-muted)",
+            border: "1px solid var(--wm-border)",
+            color: "var(--wm-text-muted)",
             cursor: isPending ? "wait" : "pointer",
           }}
           onMouseEnter={(e) => {
@@ -155,9 +155,9 @@ export default function DashboardTopbar({ user }: { user: User }) {
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "var(--rk-border)";
+              "var(--wm-border)";
             (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--rk-text-muted)";
+              "var(--wm-text-muted)";
           }}
         >
           <svg

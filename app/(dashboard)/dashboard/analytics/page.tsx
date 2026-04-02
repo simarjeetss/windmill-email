@@ -83,11 +83,11 @@ export default async function AnalyticsPage({
         <div className="rk-fade-up mb-8">
           <h1
             className="text-3xl font-medium mb-1"
-            style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+            style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
           >
             Analytics
           </h1>
-          <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
             You need at least one campaign to see analytics.
           </p>
         </div>
@@ -121,11 +121,11 @@ export default async function AnalyticsPage({
         <div>
           <h1
             className="text-3xl font-medium mb-1"
-            style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+            style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
           >
             Analytics
           </h1>
-          <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
             Track sends, opens, and clicks by campaign.
           </p>
         </div>
@@ -181,10 +181,10 @@ export default async function AnalyticsPage({
             <CardContent>
               {topCampaign ? (
                 <div className="space-y-2">
-                  <div className="text-sm font-medium" style={{ color: "var(--rk-text)" }}>
+                  <div className="text-sm font-medium" style={{ color: "var(--wm-text)" }}>
                     {topCampaign.name}
                   </div>
-                  <div className="text-xs" style={{ color: "var(--rk-text-muted)" }}>
+                  <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
                     {topCampaign.opened} opens · {topCampaign.openRate} open rate
                   </div>
                   <Link href={`/dashboard/campaigns/${topCampaign.id}`}>
@@ -194,7 +194,7 @@ export default async function AnalyticsPage({
                   </Link>
                 </div>
               ) : (
-                <div className="text-xs" style={{ color: "var(--rk-text-muted)" }}>
+                <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
                   No opens yet. Send your next campaign to unlock more data.
                 </div>
               )}
@@ -208,22 +208,22 @@ export default async function AnalyticsPage({
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span style={{ color: "var(--rk-text-muted)" }}>Sent</span>
-                <span style={{ color: "var(--rk-text)" }}>{stats.sent}</span>
+                <span style={{ color: "var(--wm-text-muted)" }}>Sent</span>
+                <span style={{ color: "var(--wm-text)" }}>{stats.sent}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span style={{ color: "var(--rk-text-muted)" }}>Failed</span>
-                <span style={{ color: "var(--rk-text)" }}>{stats.failed}</span>
+                <span style={{ color: "var(--wm-text-muted)" }}>Failed</span>
+                <span style={{ color: "var(--wm-text)" }}>{stats.failed}</span>
               </div>
               <div
                 className="h-2 rounded-full overflow-hidden"
-                style={{ background: "rgba(255,255,255,0.08)" }}
+                style={{ background: "var(--wm-border)" }}
               >
                 <div
                   className="h-full"
                   style={{
                     width: stats.sent + stats.failed === 0 ? "0%" : `${Math.round((stats.sent / (stats.sent + stats.failed)) * 100)}%`,
-                    background: "var(--rk-gold)",
+                    background: "var(--wm-accent)",
                   }}
                 />
               </div>
@@ -243,12 +243,12 @@ export default async function AnalyticsPage({
           <Card key={card.key} size="sm">
             <CardHeader className="flex flex-row items-start justify-between">
               <div>
-                <CardTitle className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+                <CardTitle className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
                   {card.label}
                 </CardTitle>
                 <div
                   className="text-2xl font-semibold mt-1"
-                  style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                  style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
                 >
                   {card.value}
                 </div>
@@ -258,9 +258,9 @@ export default async function AnalyticsPage({
                   <TooltipTrigger
                     aria-label={`${card.label} info`}
                     className="h-8 w-8 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(255,255,255,0.05)" }}
+                    style={{ background: "var(--wm-surface-2)" }}
                   >
-                    <span className="text-[11px]" style={{ color: "var(--rk-text-muted)" }}>i</span>
+                    <span className="text-[11px]" style={{ color: "var(--wm-text-muted)" }}>i</span>
                   </TooltipTrigger>
                   <TooltipContent>{KPI_DESCRIPTIONS[card.key]}</TooltipContent>
                 </Tooltip>
@@ -281,7 +281,7 @@ export default async function AnalyticsPage({
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left" style={{ color: "var(--rk-text-muted)" }}>
+                <tr className="text-left" style={{ color: "var(--wm-text-muted)" }}>
                   <th className="pb-2">Contact</th>
                   <th className="pb-2">Company</th>
                   <th className="pb-2">Sent</th>
@@ -294,7 +294,7 @@ export default async function AnalyticsPage({
               <tbody>
                 {contacts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-4" style={{ color: "var(--rk-text-muted)" }}>
+                    <td colSpan={7} className="py-4" style={{ color: "var(--wm-text-muted)" }}>
                       No engagement yet. Send a campaign to populate this table.
                     </td>
                   </tr>
@@ -302,23 +302,23 @@ export default async function AnalyticsPage({
                   contacts.map((contact) => (
                     <tr
                       key={contact.contact_id}
-                      className="border-t border-white/5"
+                      style={{ borderTop: "1px solid var(--wm-border)" }}
                     >
                       <td className="py-3">
-                        <div className="font-medium" style={{ color: "var(--rk-text)" }}>
+                        <div className="font-medium" style={{ color: "var(--wm-text)" }}>
                           {contact.name}
                         </div>
-                        <div className="text-[11px]" style={{ color: "var(--rk-text-muted)" }}>
+                        <div className="text-[11px]" style={{ color: "var(--wm-text-muted)" }}>
                           {contact.email}
                         </div>
                       </td>
-                      <td className="py-3" style={{ color: "var(--rk-text-muted)" }}>
+                      <td className="py-3" style={{ color: "var(--wm-text-muted)" }}>
                         {contact.company ?? "—"}
                       </td>
-                      <td className="py-3" style={{ color: "var(--rk-text)" }}>{contact.sent}</td>
-                      <td className="py-3" style={{ color: "var(--rk-text)" }}>{contact.opened}</td>
-                      <td className="py-3" style={{ color: "var(--rk-text)" }}>{contact.clicked}</td>
-                      <td className="py-3" style={{ color: "var(--rk-text-muted)" }}>
+                      <td className="py-3" style={{ color: "var(--wm-text)" }}>{contact.sent}</td>
+                      <td className="py-3" style={{ color: "var(--wm-text)" }}>{contact.opened}</td>
+                      <td className="py-3" style={{ color: "var(--wm-text)" }}>{contact.clicked}</td>
+                      <td className="py-3" style={{ color: "var(--wm-text-muted)" }}>
                         {formatDate(contact.lastActivity)}
                       </td>
                       <td className="py-3">
@@ -327,24 +327,24 @@ export default async function AnalyticsPage({
                           style={{
                             background:
                               contact.status === "clicked"
-                                ? "rgba(59,130,246,0.2)"
+                                ? "rgba(59,130,246,0.12)"
                                 : contact.status === "opened"
-                                ? "rgba(34,197,94,0.2)"
+                                ? "rgba(43,122,95,0.10)"
                                 : contact.status === "sent"
-                                ? "rgba(251,191,36,0.2)"
+                                ? "rgba(217,119,6,0.10)"
                                 : contact.status === "failed"
-                                ? "rgba(239,68,68,0.2)"
-                                : "rgba(148,163,184,0.2)",
+                                ? "rgba(239,68,68,0.10)"
+                                : "rgba(100,116,139,0.10)",
                             color:
                               contact.status === "clicked"
-                                ? "#60a5fa"
+                                ? "#3b82f6"
                                 : contact.status === "opened"
-                                ? "#4ade80"
+                                ? "var(--wm-accent)"
                                 : contact.status === "sent"
-                                ? "#fbbf24"
+                                ? "#d97706"
                                 : contact.status === "failed"
-                                ? "#f87171"
-                                : "#cbd5f5",
+                                ? "#dc2626"
+                                : "#64748b",
                           }}
                         >
                           {contact.status}

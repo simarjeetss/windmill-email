@@ -1,77 +1,112 @@
 import Link from "next/link";
 
 const METRICS = [
-  { label: "Sent",    value: "2,841", pct: 72,  delta: "+12% this week" },
-  { label: "Opens",   value: "68.4%", pct: 68,  delta: "+3.1 pts" },
-  { label: "Replies", value: "9.2%",  pct: 9,   delta: "+1.8 pts" },
-];
-
-const CONTACTS = [
-  { name: "Sarah Chen",  co: "Vercel",  status: "opened"  },
-  { name: "Marcus Hill", co: "Stripe",  status: "sent"    },
-  { name: "Priya Nair",  co: "Linear",  status: "clicked" },
+  { label: "Emails Sent",   value: "48,200+", desc: "Across all campaigns" },
+  { label: "Open Rate",     value: "67.3%",   desc: "Industry avg: 21%" },
+  { label: "Reply Rate",    value: "11.4%",   desc: "3× higher than cold" },
+  { label: "Companies",     value: "2,100+",  desc: "Managed in platform" },
 ];
 
 const FEATURES = [
-  { num: "01", title: "AI Drafting",           desc: "The model mirrors your voice — learns from every edit you make." },
-  { num: "02", title: "Deep Personalization",  desc: "First name, company, role — injected at send time, per contact." },
-  { num: "03", title: "Open & Click Tracking", desc: "Pixel-accurate opens and redirect-based click tracking, live." },
-  { num: "04", title: "Smart Follow-ups",      desc: "Sequences that pause the moment a reply lands in your inbox." },
+  {
+    title: "Bulk Import & Manage",
+    desc: "Import thousands of companies and contacts from Excel. Filter, segment, and organize your outreach lists with ease.",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="12" y1="18" x2="12" y2="12" />
+        <line x1="9" y1="15" x2="15" y2="15" />
+      </svg>
+    ),
+  },
+  {
+    title: "Campaign Composer",
+    desc: "Draft personalized emails with AI assistance. Use template variables for per-contact customization at scale.",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+        <polyline points="22,6 12,13 2,6" />
+      </svg>
+    ),
+  },
+  {
+    title: "Engagement Tracking",
+    desc: "Real-time tracking of opens, clicks, and replies. Know exactly who engaged with every email you send.",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+        <polyline points="17 6 23 6 23 12" />
+      </svg>
+    ),
+  },
+  {
+    title: "Analytics Dashboard",
+    desc: "Clear, actionable reporting on campaign performance. Spot trends, compare campaigns, and optimize your outreach.",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
 ];
 
-const STATUS_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
-  opened:  { bg: "rgba(34,197,94,0.12)",  fg: "#4ade80",  border: "rgba(34,197,94,0.25)"  },
-  clicked: { bg: "rgba(139,92,246,0.12)", fg: "#a78bfa",  border: "rgba(139,92,246,0.25)" },
-  sent:    { bg: "rgba(255,255,255,0.06)", fg: "rgba(255,255,255,0.4)", border: "rgba(255,255,255,0.1)" },
-};
+/* Wind turbine SVG icon — used decoratively */
+function TurbineIcon({ className, size = 48 }: { className?: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      {/* Tower */}
+      <line x1="24" y1="24" x2="24" y2="46" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      {/* Hub */}
+      <circle cx="24" cy="24" r="2.5" fill="currentColor" />
+      {/* Blades */}
+      <g className="wm-turbine-blades" style={{ transformOrigin: "24px 24px" }}>
+        <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" />
+        <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" transform="rotate(120 24 24)" />
+        <ellipse cx="24" cy="15" rx="2.2" ry="9" fill="currentColor" opacity="0.7" transform="rotate(240 24 24)" />
+      </g>
+    </svg>
+  );
+}
 
 export default function Home() {
   return (
     <div
       className="min-h-screen"
-      style={{ background: "var(--rk-bg)", color: "var(--rk-text)", fontFamily: "var(--font-body)" }}
+      style={{ background: "var(--wm-bg)", color: "var(--wm-text)", fontFamily: "var(--font-body)" }}
     >
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <nav
         className="flex items-center justify-between px-6 sm:px-12 lg:px-20 h-16"
-        style={{ borderBottom: "1px solid var(--rk-border)" }}
+        style={{ borderBottom: "1px solid var(--wm-border)", background: "var(--wm-surface)" }}
       >
-        <Link href="/">
-          <span
-            className="text-xl font-bold tracking-tight cursor-pointer"
-            style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+        <Link href="/" className="flex items-center gap-2.5">
+          <TurbineIcon size={28} className="text-[var(--wm-accent)]" />
+          {/* <span
+            className="text-lg font-semibold tracking-tight"
+            style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
           >
-            ReachKit<span style={{ color: "var(--rk-gold)" }}>.ai</span>
-          </span>
+            s
+          </span> */}
         </Link>
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-5 mr-3">
-            <Link
-              href="/pricing"
-              className="text-sm"
-              style={{ color: "var(--rk-text-muted)" }}
-            >
+          <div className="hidden sm:flex items-center gap-6 mr-4">
+            <Link href="/pricing" className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
               Pricing
             </Link>
-            <Link
-              href="/blog"
-              className="text-sm"
-              style={{ color: "var(--rk-text-muted)" }}
-            >
+            <Link href="/blog" className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
               Blog
             </Link>
           </div>
-          <Link
-            href="/login"
-            className="text-sm px-4 py-2 rounded-lg"
-            style={{ color: "var(--rk-text-muted)" }}
-          >
+          <Link href="/login" className="text-sm px-4 py-2 rounded-lg" style={{ color: "var(--wm-text-muted)" }}>
             Sign in
           </Link>
           <Link href="/signup">
             <button
               className="text-sm font-semibold px-5 py-2 rounded-lg"
-              style={{ background: "var(--rk-text)", color: "var(--rk-bg)", border: "none", cursor: "pointer" }}
+              style={{ background: "var(--wm-accent)", color: "var(--wm-accent-text)", border: "none", cursor: "pointer" }}
             >
               Get started
             </button>
@@ -80,89 +115,71 @@ export default function Home() {
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden px-6 sm:px-12 lg:px-20 pt-20 pb-0"
-      >
-        {/* Subtle warm radial behind the headline */}
+      <section className="relative overflow-hidden px-6 sm:px-12 lg:px-20 pt-20 sm:pt-28 pb-16">
+        {/* Subtle decorative grid */}
         <div
           aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            top: "-80px", left: "30%",
-            width: "700px", height: "500px",
-            background: "radial-gradient(ellipse, rgba(184,135,58,0.07) 0%, transparent 65%)",
-          }}
+          className="absolute inset-0 wm-grid-bg pointer-events-none"
+          style={{ opacity: 0.5 }}
         />
 
-        {/* Ghost lettermark */}
-        <span
-          aria-hidden
-          className="absolute select-none pointer-events-none"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "clamp(260px, 38vw, 540px)",
-            fontWeight: 700,
-            lineHeight: 1,
-            color: "var(--rk-gold)",
-            opacity: 0.028,
-            top: "0px",
-            right: "-3%",
-            letterSpacing: "-0.06em",
-          }}
-        >
-          R
-        </span>
+        {/* Decorative turbines — far right, very subtle */}
+        <div aria-hidden className="absolute top-12 right-[8%] opacity-[0.05] hidden lg:block">
+          <TurbineIcon size={180} />
+        </div>
+        <div aria-hidden className="absolute top-32 right-[18%] opacity-[0.03] hidden lg:block">
+          <TurbineIcon size={120} />
+        </div>
 
-        {/* ── Headline block ── */}
-        <div className="relative z-10 max-w-3xl mx-auto text-center">
-          {/* Eyebrow pill */}
-          <div className="rk-fade-up inline-flex items-center gap-2 mb-8">
+        {/* Hero content */}
+        <div className="relative z-10 max-w-3xl">
+          {/* Eyebrow */}
+          <div className="rk-fade-up mb-6">
             <span
-              className="inline-flex items-center gap-2 text-xs font-medium px-4 py-1.5 rounded-full"
+              className="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full"
               style={{
-                background: "var(--rk-gold-dim)",
-                border: "1px solid rgba(184,135,58,0.3)",
-                color: "var(--rk-gold)",
-                letterSpacing: "0.05em",
+                background: "var(--wm-accent-dim)",
+                border: "1px solid rgba(43,122,95,0.15)",
+                color: "var(--wm-accent)",
+                letterSpacing: "0.04em",
               }}
             >
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: "var(--rk-gold)" }}
-              />
-              AI-POWERED COLD OUTREACH
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--wm-accent)" }} />
+              OUTREACH PLATFORM FOR WIND ENERGY
             </span>
           </div>
 
           <h1
-            className="rk-fade-up rk-delay-1 mb-6"
+            className="rk-fade-up rk-delay-1 mb-5"
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(2.8rem, 6vw, 5rem)",
+              fontSize: "clamp(2.4rem, 5vw, 4rem)",
               fontWeight: 600,
-              lineHeight: 1.06,
+              lineHeight: 1.1,
               letterSpacing: "-0.025em",
-              color: "var(--rk-text)",
+              color: "var(--wm-text)",
             }}
           >
-            Cold email that sounds like{" "}
-            <br className="hidden sm:block" />
-            <em style={{ color: "var(--rk-gold)" }}>you wrote every word.</em>
+            Manage contacts.
+            <br />
+            Send campaigns.
+            <br />
+            <span style={{ color: "var(--wm-accent)" }}>Track every open.</span>
           </h1>
 
           <p
-            className="rk-fade-up rk-delay-2 mb-10 text-lg leading-relaxed mx-auto"
-            style={{ color: "var(--rk-text-muted)", maxWidth: "520px" }}
+            className="rk-fade-up rk-delay-2 mb-8 text-lg leading-relaxed"
+            style={{ color: "var(--wm-text-muted)", maxWidth: "520px" }}
           >
-            ReachKit handles AI drafting, per-contact personalization, and engagement
-            tracking — in one focused tool.
+            The email outreach platform built for B2B wind energy companies.
+            Import your Excel data, run bulk campaigns, and track engagement — all in one clean workspace.
           </p>
 
-          <div className="rk-fade-up rk-delay-3 flex flex-wrap items-center justify-center gap-4 mb-16">
+          <div className="rk-fade-up rk-delay-3 flex flex-wrap items-center gap-4">
             <Link href="/signup">
               <button
                 className="rk-btn-gold"
-                style={{ width: "auto", padding: "0.9rem 2.6rem", fontSize: "1rem" }}
+                style={{ width: "auto", padding: "0.75rem 2rem", fontSize: "0.95rem" }}
               >
                 Start for free
               </button>
@@ -170,7 +187,7 @@ export default function Home() {
             <Link
               href="/login"
               className="flex items-center gap-1.5 text-sm font-medium"
-              style={{ color: "var(--rk-text-muted)" }}
+              style={{ color: "var(--wm-text-muted)" }}
             >
               Already have an account
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -179,226 +196,66 @@ export default function Home() {
             </Link>
           </div>
         </div>
-
-        {/* ── Floating dashboard card ── */}
-        <div className="rk-fade-up rk-delay-4 relative z-10 max-w-4xl mx-auto">
-          {/* Halo glow underneath the card */}
-          <div
-            aria-hidden
-            className="absolute pointer-events-none"
-            style={{
-              inset: "20px -20px -40px",
-              background: "radial-gradient(ellipse at 50% 100%, rgba(184,135,58,0.18) 0%, transparent 65%)",
-              filter: "blur(24px)",
-            }}
-          />
-
-          <div
-            className="relative rounded-2xl overflow-hidden"
-            style={{
-              background: "linear-gradient(160deg, #1a1610 0%, #0d0d0f 55%, #111014 100%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 40px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset",
-            }}
-          >
-            {/* Window chrome bar */}
-            <div
-              className="flex items-center gap-2 px-4 py-3"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.1)" }} />
-              <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.1)" }} />
-              <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.1)" }} />
-              <span
-                className="ml-4 text-xs"
-                style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-body)" }}
-              >
-                reachkit.ai / campaigns / Q1 Outreach
-              </span>
-              <div className="flex-1" />
-              <span
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
-                style={{
-                  background: "rgba(34,197,94,0.1)",
-                  border: "1px solid rgba(34,197,94,0.22)",
-                  color: "#4ade80",
-                }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80" }} />
-                Live
-              </span>
-            </div>
-
-            {/* Dashboard content */}
-            <div className="grid sm:grid-cols-[1fr_1px_1fr] gap-0">
-
-              {/* Left — metrics */}
-              <div className="p-6 space-y-3">
-                <p
-                  className="text-xs uppercase tracking-widest mb-4"
-                  style={{ color: "rgba(255,255,255,0.28)", letterSpacing: "0.14em" }}
-                >
-                  Campaign metrics
-                </p>
-                {METRICS.map((m) => (
-                  <div
-                    key={m.label}
-                    className="rounded-xl px-4 py-3.5"
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                    }}
-                  >
-                    <div className="flex items-baseline justify-between mb-2">
-                      <span className="text-xs" style={{ color: "rgba(255,255,255,0.38)" }}>{m.label}</span>
-                      <span className="text-xs font-medium" style={{ color: "#86efac" }}>{m.delta}</span>
-                    </div>
-                    <div
-                      className="text-2xl font-semibold"
-                      style={{ fontFamily: "var(--font-display)", color: "#f5f0e6", lineHeight: 1 }}
-                    >
-                      {m.value}
-                    </div>
-                    <div
-                      className="mt-3 h-1 rounded-full overflow-hidden"
-                      style={{ background: "rgba(255,255,255,0.07)" }}
-                    >
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${m.pct}%`,
-                          background: "linear-gradient(90deg, #b8873a, #e8c47a)",
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Divider */}
-              <div style={{ background: "rgba(255,255,255,0.05)" }} />
-
-              {/* Right — contacts */}
-              <div className="p-6">
-                <p
-                  className="text-xs uppercase tracking-widest mb-4"
-                  style={{ color: "rgba(255,255,255,0.28)", letterSpacing: "0.14em" }}
-                >
-                  Recent contacts
-                </p>
-                <div className="space-y-2 mb-6">
-                  {CONTACTS.map((c) => {
-                    const s = STATUS_COLOR[c.status];
-                    return (
-                      <div
-                        key={c.name}
-                        className="flex items-center justify-between px-3 py-2.5 rounded-lg"
-                        style={{
-                          background: "rgba(255,255,255,0.03)",
-                          border: "1px solid rgba(255,255,255,0.05)",
-                        }}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                            style={{ background: "rgba(184,135,58,0.14)", color: "#d4a853" }}
-                          >
-                            {c.name[0]}
-                          </div>
-                          <div>
-                            <div className="text-xs font-medium leading-tight" style={{ color: "#f0ede8" }}>{c.name}</div>
-                            <div className="text-xs leading-tight" style={{ color: "rgba(255,255,255,0.28)" }}>{c.co}</div>
-                          </div>
-                        </div>
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full capitalize"
-                          style={{ background: s.bg, color: s.fg, border: `1px solid ${s.border}` }}
-                        >
-                          {c.status}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Quote */}
-                <div
-                  className="rounded-xl p-4"
-                  style={{ background: "rgba(184,135,58,0.07)", border: "1px solid rgba(184,135,58,0.15)" }}
-                >
-                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.45)", fontStyle: "italic" }}>
-                    &ldquo;Replies went up 3&times; the first week. The AI actually sounds like me.&rdquo;
-                  </p>
-                  <p className="text-xs mt-2 font-medium" style={{ color: "#d4a853" }}>— Early beta user</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
-      {/* ── Stats bar ───────────────────────────────────────────────────── */}
+      {/* ── Metrics bar ─────────────────────────────────────────────────── */}
       <div
-        className="px-6 sm:px-12 lg:px-20 py-10 mt-16 flex flex-wrap items-center justify-center gap-12"
-        style={{ borderTop: "1px solid var(--rk-border)", borderBottom: "1px solid var(--rk-border)" }}
+        className="px-6 sm:px-12 lg:px-20 py-10"
+        style={{ borderTop: "1px solid var(--wm-border)", borderBottom: "1px solid var(--wm-border)", background: "var(--wm-surface)" }}
       >
-        {[
-          { n: "10k+", label: "Emails sent" },
-          { n: "68%",  label: "Avg open rate" },
-          { n: "9%",   label: "Avg reply rate" },
-          { n: "< 5m", label: "Setup time" },
-        ].map((s, i, arr) => (
-          <div key={s.label} className="flex items-center gap-10">
-            <div className="text-center">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-8">
+          {METRICS.map((m) => (
+            <div key={m.label}>
               <div
-                className="text-3xl font-semibold"
-                style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                className="text-2xl sm:text-3xl font-semibold mb-1"
+                style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
               >
-                {s.n}
+                {m.value}
               </div>
-              <div className="text-xs mt-0.5" style={{ color: "var(--rk-text-muted)" }}>{s.label}</div>
+              <div className="text-sm font-medium mb-0.5" style={{ color: "var(--wm-text)" }}>{m.label}</div>
+              <div className="text-xs" style={{ color: "var(--wm-text-sub)" }}>{m.desc}</div>
             </div>
-            {i < arr.length - 1 && (
-              <div className="w-px h-8" style={{ background: "var(--rk-border)" }} />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* ── Features ────────────────────────────────────────────────────── */}
-      <section className="px-6 sm:px-12 lg:px-20 py-24">
+      <section className="px-6 sm:px-12 lg:px-20 py-20">
         <div className="max-w-5xl mx-auto">
-          <div className="mb-16 max-w-xl">
+          <div className="mb-14 max-w-xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-px w-8" style={{ background: "var(--rk-gold)" }} />
-              <span className="text-xs uppercase tracking-[0.18em]" style={{ color: "var(--rk-gold)" }}>
+              <div className="h-px w-8" style={{ background: "var(--wm-accent)" }} />
+              <span className="text-xs uppercase tracking-[0.15em] font-medium" style={{ color: "var(--wm-accent)" }}>
                 How it works
               </span>
             </div>
             <h2
-              className="text-3xl sm:text-4xl font-semibold"
-              style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)", lineHeight: 1.15 }}
+              className="text-2xl sm:text-3xl font-semibold"
+              style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)", lineHeight: 1.2 }}
             >
-              Everything you need.<br />
-              <span style={{ color: "var(--rk-text-muted)", fontWeight: 400 }}>Nothing you don&apos;t.</span>
+              Everything you need for
+              <br />
+              <span style={{ color: "var(--wm-text-muted)" }}>effective outreach at scale.</span>
             </h2>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px" style={{ background: "var(--rk-border)" }}>
+          <div className="grid sm:grid-cols-2 gap-5">
             {FEATURES.map((f) => (
               <div
-                key={f.num}
-                className="p-8"
-                style={{ background: "var(--rk-bg)" }}
+                key={f.title}
+                className="rounded-xl p-6 sm:p-7"
+                style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
               >
                 <div
-                  className="text-4xl font-bold mb-5 leading-none"
-                  style={{ fontFamily: "var(--font-display)", color: "var(--rk-gold)", opacity: 0.3 }}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-4"
+                  style={{ background: "var(--wm-accent-dim)", color: "var(--wm-accent)" }}
                 >
-                  {f.num}
+                  {f.icon}
                 </div>
-                <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--rk-text)" }}>{f.title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--rk-text-muted)" }}>{f.desc}</p>
+                <h3 className="text-base font-semibold mb-2" style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}>
+                  {f.title}
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--wm-text-muted)" }}>{f.desc}</p>
               </div>
             ))}
           </div>
@@ -406,37 +263,33 @@ export default function Home() {
       </section>
 
       {/* ── CTA ─────────────────────────────────────────────────────────── */}
-      <section className="px-6 sm:px-12 lg:px-20 pb-24">
+      <section className="px-6 sm:px-12 lg:px-20 pb-20">
         <div
           className="max-w-5xl mx-auto rounded-2xl relative overflow-hidden"
           style={{
-            background: "linear-gradient(135deg, #16130c 0%, #0d0d0f 60%, #13100d 100%)",
-            border: "1px solid rgba(255,255,255,0.07)",
+            background: "var(--wm-surface)",
+            border: "1px solid var(--wm-border)",
           }}
         >
-          <div
-            aria-hidden
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: "radial-gradient(ellipse at 15% 50%, rgba(184,135,58,0.1) 0%, transparent 55%), radial-gradient(ellipse at 85% 50%, rgba(184,135,58,0.06) 0%, transparent 55%)",
-            }}
-          />
-          <div className="relative flex flex-col sm:flex-row items-center justify-between gap-8 px-10 py-12">
-            <div>
-              <h2
-                className="text-2xl sm:text-3xl font-semibold mb-2"
-                style={{ fontFamily: "var(--font-display)", color: "#f5f0e6" }}
-              >
-                Ready to fill your pipeline?
-              </h2>
-              <p className="text-sm" style={{ color: "rgba(255,255,255,0.38)" }}>
-                Set up your first campaign in under 5 minutes.
-              </p>
+          <div className="relative flex flex-col sm:flex-row items-center justify-between gap-6 px-8 sm:px-10 py-10">
+            <div className="flex items-center gap-4">
+              <TurbineIcon size={40} className="text-[var(--wm-accent)] opacity-30 hidden sm:block" />
+              <div>
+                <h2
+                  className="text-xl sm:text-2xl font-semibold mb-1"
+                  style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
+                >
+                  Ready to streamline your outreach?
+                </h2>
+                <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
+                  Set up your first campaign in under 5 minutes.
+                </p>
+              </div>
             </div>
             <Link href="/signup" className="shrink-0">
               <button
                 className="rk-btn-gold"
-                style={{ width: "auto", padding: "0.9rem 2.4rem", fontSize: "0.95rem" }}
+                style={{ width: "auto", padding: "0.75rem 2rem", fontSize: "0.9rem" }}
               >
                 Get started free →
               </button>
@@ -448,27 +301,27 @@ export default function Home() {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer
         className="px-6 sm:px-12 lg:px-20 pb-10 pt-8 flex flex-wrap items-center justify-between gap-6"
-        style={{ borderTop: "1px solid var(--rk-border)" }}
+        style={{ borderTop: "1px solid var(--wm-border)" }}
       >
-        <span
-          className="font-bold"
-          style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
-        >
-          ReachKit<span style={{ color: "var(--rk-gold)" }}>.ai</span>
-        </span>
+        <Link href="/" className="flex items-center gap-2">
+          <TurbineIcon size={22} className="text-[var(--wm-accent)]" />
+          <span className="font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}>
+            Windmill
+          </span>
+        </Link>
         <nav className="flex flex-wrap items-center gap-6">
           {[
             { label: "Pricing", href: "/pricing" },
             { label: "Blog",    href: "/blog"    },
             { label: "Sign in", href: "/login"   },
           ].map((l) => (
-            <Link key={l.href} href={l.href} className="text-xs" style={{ color: "var(--rk-text-sub)" }}>
+            <Link key={l.href} href={l.href} className="text-xs" style={{ color: "var(--wm-text-sub)" }}>
               {l.label}
             </Link>
           ))}
         </nav>
-        <p className="text-xs" style={{ color: "var(--rk-text-sub)" }}>
-          © 2026 ReachKit.ai
+        <p className="text-xs" style={{ color: "var(--wm-text-sub)" }}>
+          © 2026 Windmill
         </p>
       </footer>
     </div>

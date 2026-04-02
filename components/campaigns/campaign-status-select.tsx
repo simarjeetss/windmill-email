@@ -12,10 +12,10 @@ const STATUS_OPTIONS: { value: Campaign["status"]; label: string }[] = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  draft:     "var(--rk-text-muted)",
-  active:    "#4ade80",
-  paused:    "#fb923c",
-  completed: "#818cf8",
+  draft:     "var(--wm-text-muted)",
+  active:    "var(--wm-accent)",
+  paused:    "#d97706",
+  completed: "#6366f1",
 };
 
 export default function CampaignStatusSelect({
@@ -41,9 +41,9 @@ export default function CampaignStatusSelect({
       disabled={isPending}
       className="text-xs px-3 py-1.5 rounded-lg font-medium appearance-none cursor-pointer transition-all"
       style={{
-        background: "var(--rk-surface-2)",
-        border: "1px solid var(--rk-border-md)",
-        color: STATUS_COLORS[currentStatus] ?? "var(--rk-text-muted)",
+        background: "var(--wm-surface-2)",
+        border: "1px solid var(--wm-border-md)",
+        color: STATUS_COLORS[currentStatus] ?? "var(--wm-text-muted)",
         outline: "none",
         opacity: isPending ? 0.6 : 1,
       }}
@@ -52,7 +52,7 @@ export default function CampaignStatusSelect({
         <option
           key={opt.value}
           value={opt.value}
-          style={{ background: "var(--rk-surface-2)", color: "var(--rk-text)" }}
+          style={{ background: "var(--wm-surface-2)", color: "var(--wm-text)" }}
         >
           {opt.label}
         </option>

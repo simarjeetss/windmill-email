@@ -18,7 +18,7 @@ export default async function DashboardLayout({
   return (
     <div
       className="flex min-h-screen"
-      style={{ background: "var(--rk-bg)" }}
+      style={{ background: "var(--wm-bg)" }}
     >
       {/* Sidebar */}
       <DashboardSidebar user={user} />

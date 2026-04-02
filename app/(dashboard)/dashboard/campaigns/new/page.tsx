@@ -33,7 +33,7 @@ export default function NewCampaignPage() {
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1.5 text-xs mb-4 transition-colors"
-          style={{ color: "var(--rk-text-muted)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          style={{ color: "var(--wm-text-muted)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -42,11 +42,11 @@ export default function NewCampaignPage() {
         </button>
         <h1
           className="text-3xl font-medium mb-1"
-          style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+          style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
         >
           New Campaign
         </h1>
-        <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
           Give your outreach campaign a name and status
         </p>
       </div>
@@ -54,7 +54,7 @@ export default function NewCampaignPage() {
       {/* Form card */}
       <div
         className="rk-fade-up rk-delay-1 rounded-xl p-7"
-        style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+        style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
       >
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Name */}
@@ -62,9 +62,9 @@ export default function NewCampaignPage() {
             <label
               htmlFor="name"
               className="block text-xs uppercase tracking-widest"
-              style={{ color: "var(--rk-text-muted)" }}
+              style={{ color: "var(--wm-text-muted)" }}
             >
-              Campaign Name <span style={{ color: "var(--rk-gold)" }}>*</span>
+              Campaign Name <span style={{ color: "var(--wm-accent)" }}>*</span>
             </label>
             <input
               id="name"
@@ -82,9 +82,9 @@ export default function NewCampaignPage() {
             <label
               htmlFor="description"
               className="block text-xs uppercase tracking-widest"
-              style={{ color: "var(--rk-text-muted)" }}
+              style={{ color: "var(--wm-text-muted)" }}
             >
-              Description <span className="normal-case tracking-normal text-[11px]" style={{ color: "var(--rk-text-sub)" }}>(optional)</span>
+              Description <span className="normal-case tracking-normal text-[11px]" style={{ color: "var(--wm-text-sub)" }}>(optional)</span>
             </label>
             <textarea
               id="description"
@@ -101,7 +101,7 @@ export default function NewCampaignPage() {
           <div className="space-y-1.5">
             <label
               className="block text-xs uppercase tracking-widest"
-              style={{ color: "var(--rk-text-muted)" }}
+              style={{ color: "var(--wm-text-muted)" }}
             >
               Status
             </label>
@@ -110,7 +110,7 @@ export default function NewCampaignPage() {
                 <label
                   key={opt.value}
                   className="relative flex flex-col items-center gap-1 p-3 rounded-lg cursor-pointer transition-all"
-                  style={{ border: "1px solid var(--rk-border)", background: "var(--rk-surface-2)" }}
+                  style={{ border: "1px solid var(--wm-border)", background: "var(--wm-surface-2)" }}
                 >
                   <input
                     type="radio"
@@ -120,18 +120,18 @@ export default function NewCampaignPage() {
                     className="sr-only peer"
                   />
                   <span
-                    className="text-sm font-medium peer-checked:text-[var(--rk-gold)]"
-                    style={{ color: "var(--rk-text-muted)" }}
+                    className="text-sm font-medium peer-checked:text-[var(--wm-accent)]"
+                    style={{ color: "var(--wm-text-muted)" }}
                   >
                     {opt.label}
                   </span>
-                  <span className="text-[10px]" style={{ color: "var(--rk-text-sub)" }}>
+                  <span className="text-[10px]" style={{ color: "var(--wm-text-sub)" }}>
                     {opt.desc}
                   </span>
                   {/* checked ring via peer */}
                   <span
                     className="absolute inset-0 rounded-lg pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"
-                    style={{ border: "1px solid rgba(212,168,83,0.4)", background: "rgba(212,168,83,0.05)" }}
+                    style={{ border: "1px solid rgba(43,122,95,0.4)", background: "rgba(43,122,95,0.05)" }}
                   />
                 </label>
               ))}

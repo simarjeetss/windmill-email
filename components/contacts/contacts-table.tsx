@@ -150,14 +150,14 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
         </div>
 
   <div className="flex flex-wrap items-center gap-2">
-          <label className="text-[11px] uppercase tracking-widest" style={{ color: "var(--rk-text-sub)" }}>
+          <label className="text-[11px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>
             Campaign
           </label>
           <select
             value={campaignFilter}
             onChange={(e) => { setCampaignFilter(e.target.value); setPage(1); setSelectedIds(new Set()); }}
             className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm"
-            style={{ color: "var(--rk-text)" }}
+            style={{ color: "var(--wm-text)" }}
             aria-label="Filter by campaign"
           >
             <option value="all">All</option>
@@ -199,10 +199,10 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
         </div>
 
   <div className="flex items-center gap-1.5 shrink-0 lg:ml-auto">
-          <span className="text-[11px] uppercase tracking-widest" style={{ color: "var(--rk-text-sub)" }}>
+          <span className="text-[11px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>
             Show
           </span>
-          <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--rk-border)" }}>
+          <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--wm-border)" }}>
             {PAGE_SIZE_OPTIONS.map((n) => (
               <Button
                 key={n}
@@ -219,7 +219,7 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] uppercase tracking-widest" style={{ color: "var(--rk-text-sub)" }}>
+        <span className="text-[11px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>
           Filters
         </span>
         <Button
@@ -244,9 +244,9 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
       {selectedIds.size > 0 && (
         <div
           className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg"
-          style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+          style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
         >
-          <span className="text-xs" style={{ color: "var(--rk-text-sub)" }}>
+          <span className="text-xs" style={{ color: "var(--wm-text-sub)" }}>
             {selectedIds.size} selected
           </span>
           <Button size="xs" variant="ghost" onClick={clearSelection}>
@@ -263,11 +263,11 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
       <div className="overflow-x-auto">
         <div
           className="rounded-xl overflow-hidden min-w-[720px]"
-          style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+          style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
         >
           <div
             className="grid grid-cols-[auto_1.2fr_1fr_1fr_auto] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-widest"
-            style={{ borderBottom: "1px solid var(--rk-border)", color: "var(--rk-text-sub)" }}
+            style={{ borderBottom: "1px solid var(--wm-border)", color: "var(--wm-text-sub)" }}
           >
             <label className="flex items-center justify-center">
               <input
@@ -284,7 +284,7 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
           </div>
 
           {slice.length > 0 ? (
-            <div className="divide-y divide-[var(--rk-border)]">
+            <div className="divide-y divide-[var(--wm-border)]">
               {slice.map((c) => (
                 <ContactRow
                   key={c.id}
@@ -296,8 +296,8 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
             </div>
           ) : (
             <div className="py-12 text-center">
-              <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
-                No contacts match <span style={{ color: "var(--rk-gold)" }}>&quot;{query}&quot;</span>
+              <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
+                No contacts match <span style={{ color: "var(--wm-accent)" }}>&quot;{query}&quot;</span>
               </p>
               <Button
                 variant="link"
@@ -313,7 +313,7 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <p className="text-xs" style={{ color: "var(--rk-text-sub)" }}>
+        <p className="text-xs" style={{ color: "var(--wm-text-sub)" }}>
           {filtered.length === contacts.length
             ? `${contacts.length} contact${contacts.length !== 1 ? "s" : ""}`
             : `${filtered.length} of ${contacts.length} contacts`}
@@ -329,7 +329,7 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
 
             {getPageNumbers(safePage, totalPages).map((n, i) =>
               n === "…" ? (
-                <span key={`ellipsis-${i}`} className="px-1 text-xs" style={{ color: "var(--rk-text-sub)" }}>…</span>
+                <span key={`ellipsis-${i}`} className="px-1 text-xs" style={{ color: "var(--wm-text-sub)" }}>…</span>
               ) : (
                 <PagBtn
                   key={n}
@@ -388,9 +388,9 @@ function PagBtn({
       aria-label={ariaLabel}
       className="min-w-[28px]"
       style={{
-        background: active ? "rgba(212,168,83,0.15)" : "transparent",
-        color: active ? "var(--rk-gold)" : disabled ? "var(--rk-text-sub)" : "var(--rk-text-muted)",
-        border: active ? "1px solid rgba(212,168,83,0.35)" : "1px solid transparent",
+        background: active ? "rgba(43,122,95,0.15)" : "transparent",
+        color: active ? "var(--wm-accent)" : disabled ? "var(--wm-text-sub)" : "var(--wm-text-muted)",
+        border: active ? "1px solid rgba(43,122,95,0.35)" : "1px solid transparent",
       }}
     >
       {children}
@@ -420,7 +420,7 @@ function ContactRow({
   return (
     <div
       className="grid grid-cols-[auto_1.2fr_1fr_1fr_auto] gap-3 items-center px-4 py-3 text-sm"
-      style={{ color: "var(--rk-text)" }}
+      style={{ color: "var(--wm-text)" }}
     >
       <label className="flex items-center justify-center">
         <input
@@ -431,21 +431,21 @@ function ContactRow({
         />
       </label>
       <div className="min-w-0">
-        <div className="truncate" style={{ color: "var(--rk-text)" }}>
+        <div className="truncate" style={{ color: "var(--wm-text)" }}>
           {contact.email}
         </div>
         {fullName && (
-          <div className="text-xs truncate" style={{ color: "var(--rk-text-muted)" }}>
+          <div className="text-xs truncate" style={{ color: "var(--wm-text-muted)" }}>
             {fullName}
           </div>
         )}
       </div>
 
-      <div className="truncate text-xs" style={{ color: "var(--rk-text-muted)" }}>
+      <div className="truncate text-xs" style={{ color: "var(--wm-text-muted)" }}>
         {contact.company || "—"}
       </div>
 
-      <div className="truncate text-xs" style={{ color: "var(--rk-text-muted)" }}>
+      <div className="truncate text-xs" style={{ color: "var(--wm-text-muted)" }}>
         {contact.campaign_name ? (
           <div className="flex items-center gap-2">
             <Link href={`/dashboard/campaigns/${contact.campaign_id}`} className="hover:underline">
@@ -454,7 +454,7 @@ function ContactRow({
             <Link
               href={`/dashboard/campaigns/${contact.campaign_id}`}
               className="text-[10px] uppercase tracking-widest"
-              style={{ color: "var(--rk-text-sub)" }}
+              style={{ color: "var(--wm-text-sub)" }}
             >
               Import
             </Link>
@@ -470,7 +470,7 @@ function ContactRow({
         onClick={handleDelete}
         disabled={isPending}
         aria-label={`Delete ${contact.email}`}
-        style={{ color: "var(--rk-text-sub)" }}
+        style={{ color: "var(--wm-text-sub)" }}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="3 6 5 6 21 6" />

@@ -42,8 +42,8 @@ export default function SignupPage() {
         <div
           className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6"
           style={{
-            background: "var(--rk-gold-dim)",
-            border: "1px solid rgba(212,168,83,0.3)",
+            background: "var(--wm-accent-dim)",
+            border: "1px solid rgba(43,122,95,0.3)",
           }}
         >
           <svg
@@ -55,18 +55,18 @@ export default function SignupPage() {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ color: "var(--rk-gold)" }}
+            style={{ color: "var(--wm-accent)" }}
           >
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
         <h2
           className="text-2xl font-medium mb-3"
-          style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+          style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
         >
           Check your inbox
         </h2>
-        <p className="text-sm mb-8" style={{ color: "var(--rk-text-muted)" }}>
+        <p className="text-sm mb-8" style={{ color: "var(--wm-text-muted)" }}>
           We&apos;ve sent a confirmation link to your email. Click it to activate
           your account.
         </p>
@@ -85,11 +85,11 @@ export default function SignupPage() {
       <div className="rk-fade-up mb-8">
         <h1
           className="text-3xl font-medium mb-2"
-          style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+          style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
         >
           Create an account
         </h1>
-        <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
           Start building your outreach campaigns today
         </p>
       </div>
@@ -100,7 +100,7 @@ export default function SignupPage() {
           <label
             htmlFor="email"
             className="block text-xs uppercase tracking-widest"
-            style={{ color: "var(--rk-text-muted)" }}
+            style={{ color: "var(--wm-text-muted)" }}
           >
             Email
           </label>
@@ -119,7 +119,7 @@ export default function SignupPage() {
           <label
             htmlFor="password"
             className="block text-xs uppercase tracking-widest"
-            style={{ color: "var(--rk-text-muted)" }}
+            style={{ color: "var(--wm-text-muted)" }}
           >
             Password
           </label>
@@ -138,7 +138,7 @@ export default function SignupPage() {
           <label
             htmlFor="confirm"
             className="block text-xs uppercase tracking-widest"
-            style={{ color: "var(--rk-text-muted)" }}
+            style={{ color: "var(--wm-text-muted)" }}
           >
             Confirm Password
           </label>
@@ -181,11 +181,11 @@ export default function SignupPage() {
 
       {/* Divider */}
       <div className="rk-fade-up rk-delay-5 flex items-center gap-3 my-6">
-        <div className="flex-1 h-px" style={{ background: "var(--rk-border)" }} />
-        <span className="text-xs" style={{ color: "var(--rk-text-sub)" }}>
+        <div className="flex-1 h-px" style={{ background: "var(--wm-border)" }} />
+        <span className="text-xs" style={{ color: "var(--wm-text-sub)" }}>
           or
         </span>
-        <div className="flex-1 h-px" style={{ background: "var(--rk-border)" }} />
+        <div className="flex-1 h-px" style={{ background: "var(--wm-border)" }} />
       </div>
 
       {/* Switch */}
@@ -193,14 +193,14 @@ export default function SignupPage() {
         <Link href="/login" className="block">
           <button type="button" className="rk-btn-ghost">
             Already have an account?{" "}
-            <span style={{ color: "var(--rk-gold)" }}>Sign in</span>
+            <span style={{ color: "var(--wm-accent)" }}>Sign in</span>
           </button>
         </Link>
       </div>
 
       <p
         className="rk-fade-up rk-delay-5 mt-8 text-center text-xs"
-        style={{ color: "var(--rk-text-sub)" }}
+        style={{ color: "var(--wm-text-sub)" }}
       >
         By signing up you agree to our Terms of Service and Privacy Policy.
       </p>

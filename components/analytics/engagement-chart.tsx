@@ -64,30 +64,30 @@ export default function EngagementChart({ data, visibleKeys }: EngagementChartPr
               <stop offset="95%" stopColor="#f87171" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+          <CartesianGrid stroke="var(--wm-border)" vertical={false} />
           <XAxis
             dataKey="date"
             tickLine={false}
             axisLine={false}
-            tick={{ fill: "var(--rk-text-muted)", fontSize: 11 }}
+            tick={{ fill: "var(--wm-text-muted)", fontSize: 11 }}
             tickFormatter={formatAxisLabel}
           />
           <YAxis
             tickLine={false}
             axisLine={false}
             allowDecimals={false}
-            tick={{ fill: "var(--rk-text-muted)", fontSize: 11 }}
+            tick={{ fill: "var(--wm-text-muted)", fontSize: 11 }}
           />
           <Tooltip
-            cursor={{ stroke: "var(--rk-border-md)", strokeDasharray: "4 4" }}
+            cursor={{ stroke: "var(--wm-border-md)", strokeDasharray: "4 4" }}
             contentStyle={{
-              background: "var(--rk-surface)",
-              border: "1px solid var(--rk-border)",
+              background: "var(--wm-surface)",
+              border: "1px solid var(--wm-border)",
               borderRadius: 10,
               fontSize: 12,
-              color: "var(--rk-text)",
+              color: "var(--wm-text)",
             }}
-            labelStyle={{ color: "var(--rk-text-muted)", marginBottom: 4 }}
+            labelStyle={{ color: "var(--wm-text-muted)", marginBottom: 4 }}
             formatter={(value: number, name: string) => [value, name]}
             labelFormatter={formatTooltipLabel}
           />

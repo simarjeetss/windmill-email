@@ -4,18 +4,18 @@ import { getCampaigns } from "@/lib/supabase/campaigns";
 import { getOverviewStats, getRecentActivity } from "@/lib/supabase/analytics";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  draft: { bg: "rgba(255,255,255,0.06)", color: "var(--rk-text-muted)", border: "rgba(255,255,255,0.12)" },
-  active: { bg: "rgba(34,197,94,0.12)", color: "#4ade80", border: "rgba(34,197,94,0.25)" },
-  paused: { bg: "rgba(251,146,60,0.12)", color: "#fb923c", border: "rgba(251,146,60,0.25)" },
-  completed: { bg: "rgba(99,102,241,0.12)", color: "#818cf8", border: "rgba(99,102,241,0.25)" },
+  draft:     { bg: "rgba(100,116,139,0.08)", color: "var(--wm-text-muted)", border: "rgba(100,116,139,0.15)" },
+  active:    { bg: "rgba(43,122,95,0.10)",   color: "var(--wm-accent)",      border: "rgba(43,122,95,0.22)"  },
+  paused:    { bg: "rgba(217,119,6,0.08)",   color: "#d97706",               border: "rgba(217,119,6,0.2)"   },
+  completed: { bg: "rgba(99,102,241,0.08)",  color: "#6366f1",               border: "rgba(99,102,241,0.2)"  },
 };
 
 const ACTIVITY_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  clicked: { bg: "rgba(59,130,246,0.12)", color: "#60a5fa", border: "rgba(59,130,246,0.25)" },
-  opened: { bg: "rgba(34,197,94,0.12)", color: "#4ade80", border: "rgba(34,197,94,0.25)" },
-  sent: { bg: "rgba(251,191,36,0.12)", color: "#fbbf24", border: "rgba(251,191,36,0.25)" },
-  failed: { bg: "rgba(239,68,68,0.12)", color: "#f87171", border: "rgba(239,68,68,0.25)" },
-  pending: { bg: "rgba(148,163,184,0.12)", color: "#cbd5f5", border: "rgba(148,163,184,0.25)" },
+  clicked: { bg: "rgba(59,130,246,0.08)",  color: "#3b82f6", border: "rgba(59,130,246,0.2)"  },
+  opened:  { bg: "rgba(43,122,95,0.10)",   color: "var(--wm-accent)", border: "rgba(43,122,95,0.22)"  },
+  sent:    { bg: "rgba(217,119,6,0.08)",   color: "#d97706", border: "rgba(217,119,6,0.2)"   },
+  failed:  { bg: "rgba(239,68,68,0.08)",   color: "#dc2626", border: "rgba(239,68,68,0.2)"   },
+  pending: { bg: "rgba(100,116,139,0.08)", color: "#64748b", border: "rgba(100,116,139,0.15)" },
 };
 
 function formatTimestamp(value: string | null) {
@@ -45,11 +45,12 @@ export default async function DashboardPage() {
       sub: campaigns.length ? `${activeCount} active` : "No campaigns yet",
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+          <polyline points="22,6 12,13 2,6" />
         </svg>
       ),
-      color: "rgba(212,168,83,0.15)",
-      iconColor: "#d4a853",
+      color: "var(--wm-accent-dim)",
+      iconColor: "var(--wm-accent)",
       href: "/dashboard/campaigns",
     },
     {
@@ -64,8 +65,8 @@ export default async function DashboardPage() {
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       ),
-      color: "rgba(99,102,241,0.15)",
-      iconColor: "#818cf8",
+      color: "rgba(99,102,241,0.08)",
+      iconColor: "#6366f1",
       href: "/dashboard/contacts",
     },
     {
@@ -74,15 +75,15 @@ export default async function DashboardPage() {
       sub: stats.sent ? `${stats.opened} opened · ${stats.clicked} clicked` : "Ready to send",
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-          <polyline points="22,6 12,13 2,6" />
+          <line x1="22" y1="2" x2="11" y2="13" />
+          <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
       ),
-      color: "rgba(34,197,94,0.12)",
-      iconColor: "#4ade80",
+      color: "rgba(5,150,105,0.08)",
+      iconColor: "#059669",
     },
     {
-      label: "Engagement",
+      label: "Open Rate",
       value: stats.openRate,
       sub: stats.clickRate === "—" ? "No activity yet" : `Click rate ${stats.clickRate}`,
       icon: (
@@ -91,8 +92,8 @@ export default async function DashboardPage() {
           <polyline points="17 6 23 6 23 12" />
         </svg>
       ),
-      color: "rgba(251,146,60,0.12)",
-      iconColor: "#fb923c",
+      color: "rgba(14,165,233,0.08)",
+      iconColor: "#0ea5e9",
       href: "/dashboard/analytics",
     },
   ];
@@ -101,13 +102,12 @@ export default async function DashboardPage() {
     <div className="max-w-5xl mx-auto">
       <div className="rk-fade-up mb-8">
         <h1
-          className="text-3xl font-medium mb-1"
-          style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+          className="text-2xl font-semibold mb-1"
+          style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
         >
           Overview
-          <span style={{ color: "var(--rk-gold)" }}>.</span>
         </h1>
-        <p className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
           Snapshot of your outreach performance · {user?.email}
         </p>
       </div>
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
           const content = (
             <div
               className="rounded-xl p-5 flex flex-col gap-3 transition-all group"
-              style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+              style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
             >
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center"
@@ -128,17 +128,17 @@ export default async function DashboardPage() {
               <div>
                 <div
                   className="text-2xl font-semibold mb-0.5"
-                  style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                  style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
                 >
                   {card.value}
                 </div>
                 <div
                   className="text-xs font-medium mb-0.5 uppercase tracking-wider"
-                  style={{ color: "var(--rk-text-muted)" }}
+                  style={{ color: "var(--wm-text-muted)" }}
                 >
                   {card.label}
                 </div>
-                <div className="text-[11px]" style={{ color: "var(--rk-text-sub)" }}>
+                <div className="text-[11px]" style={{ color: "var(--wm-text-sub)" }}>
                   {card.sub}
                 </div>
               </div>
@@ -159,43 +159,43 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           <div
             className="rk-fade-up rk-delay-2 rounded-xl p-6"
-            style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+            style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
           >
             <div className="flex items-center justify-between gap-3 mb-4">
               <h2
                 className="text-base font-semibold"
-                style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
               >
                 Recent campaigns
               </h2>
-              <Link href="/dashboard/campaigns" className="text-xs" style={{ color: "var(--rk-text-muted)" }}>
-                View all
+              <Link href="/dashboard/campaigns" className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
+                View all →
               </Link>
             </div>
             {recentCampaigns.length === 0 ? (
-              <div className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+              <div className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
                 Create a campaign to start tracking results.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {recentCampaigns.map((campaign) => {
                   const style = STATUS_STYLES[campaign.status] ?? STATUS_STYLES.draft;
                   return (
                     <Link key={campaign.id} href={`/dashboard/campaigns/${campaign.id}`}>
                       <div
                         className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors"
-                        style={{ background: "var(--rk-surface-2)", border: "1px solid var(--rk-border)" }}
+                        style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium truncate" style={{ color: "var(--rk-text)" }}>
+                          <div className="text-sm font-medium truncate" style={{ color: "var(--wm-text)" }}>
                             {campaign.name}
                           </div>
-                          <div className="text-[11px]" style={{ color: "var(--rk-text-sub)" }}>
+                          <div className="text-[11px]" style={{ color: "var(--wm-text-sub)" }}>
                             {campaign.contact_count ?? 0} contacts
                           </div>
                         </div>
                         <span
-                          className="text-[10px] px-2 py-1 rounded-full uppercase tracking-wider"
+                          className="text-[10px] px-2 py-1 rounded-full uppercase tracking-wider font-medium"
                           style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}` }}
                         >
                           {campaign.status}
@@ -210,25 +210,25 @@ export default async function DashboardPage() {
 
           <div
             className="rk-fade-up rk-delay-3 rounded-xl p-6"
-            style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+            style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
           >
             <div className="flex items-center justify-between gap-3 mb-4">
               <h2
                 className="text-base font-semibold"
-                style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+                style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
               >
                 Recent activity
               </h2>
-              <Link href="/dashboard/analytics" className="text-xs" style={{ color: "var(--rk-text-muted)" }}>
-                View analytics
+              <Link href="/dashboard/analytics" className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
+                View analytics →
               </Link>
             </div>
             {activity.length === 0 ? (
-              <div className="text-sm" style={{ color: "var(--rk-text-muted)" }}>
+              <div className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
                 Send your first campaign to populate activity.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {activity.map((row) => {
                   const status = row.clicked_at
                     ? "clicked"
@@ -245,18 +245,18 @@ export default async function DashboardPage() {
                     <div
                       key={row.id}
                       className="flex flex-wrap items-center gap-3 rounded-lg px-4 py-3"
-                      style={{ background: "var(--rk-surface-2)", border: "1px solid var(--rk-border)" }}
+                      style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium truncate" style={{ color: "var(--rk-text)" }}>
+                        <div className="text-sm font-medium truncate" style={{ color: "var(--wm-text)" }}>
                           {displayName}
                         </div>
-                        <div className="text-[11px]" style={{ color: "var(--rk-text-sub)" }}>
+                        <div className="text-[11px]" style={{ color: "var(--wm-text-sub)" }}>
                           {row.campaign_name ?? "Campaign"} · {formatTimestamp(row.sent_at)}
                         </div>
                       </div>
                       <span
-                        className="text-[10px] px-2 py-1 rounded-full uppercase tracking-wider"
+                        className="text-[10px] px-2 py-1 rounded-full uppercase tracking-wider font-medium"
                         style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}
                       >
                         {status}
@@ -272,19 +272,19 @@ export default async function DashboardPage() {
         <div className="rk-fade-up rk-delay-2 space-y-6">
           <div
             className="rounded-xl p-6"
-            style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+            style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
           >
             <h2
               className="text-base font-semibold mb-4"
-              style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+              style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
             >
               Quick actions
             </h2>
             <div className="flex flex-col gap-2">
               <Link href="/dashboard/campaigns/new" className="w-full">
                 <button
-                  className="w-full px-4 py-2 rounded-lg text-sm font-medium"
-                  style={{ background: "var(--rk-gold)", color: "#0d0d0f" }}
+                  className="rk-btn-gold w-full"
+                  style={{ fontSize: "0.875rem" }}
                 >
                   Create campaign
                 </button>
@@ -292,7 +292,7 @@ export default async function DashboardPage() {
               <Link href="/dashboard/campaigns" className="w-full">
                 <button
                   className="w-full px-4 py-2 rounded-lg text-sm font-medium"
-                  style={{ background: "transparent", border: "1px solid var(--rk-border)", color: "var(--rk-text)" }}
+                  style={{ background: "transparent", border: "1px solid var(--wm-border)", color: "var(--wm-text)" }}
                 >
                   Add contacts
                 </button>
@@ -300,7 +300,7 @@ export default async function DashboardPage() {
               <Link href="/dashboard/analytics" className="w-full">
                 <button
                   className="w-full px-4 py-2 rounded-lg text-sm font-medium"
-                  style={{ background: "transparent", border: "1px solid var(--rk-border)", color: "var(--rk-text)" }}
+                  style={{ background: "transparent", border: "1px solid var(--wm-border)", color: "var(--wm-text)" }}
                 >
                   View analytics
                 </button>
@@ -310,27 +310,25 @@ export default async function DashboardPage() {
 
           <div
             className="rounded-xl p-6"
-            style={{ background: "var(--rk-surface)", border: "1px solid var(--rk-border)" }}
+            style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
           >
             <h2
               className="text-base font-semibold mb-4"
-              style={{ fontFamily: "var(--font-display)", color: "var(--rk-text)" }}
+              style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
             >
               Engagement snapshot
             </h2>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span style={{ color: "var(--rk-text-muted)" }}>Open rate</span>
-                <span style={{ color: "var(--rk-text)" }}>{stats.openRate}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span style={{ color: "var(--rk-text-muted)" }}>Click rate</span>
-                <span style={{ color: "var(--rk-text)" }}>{stats.clickRate}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span style={{ color: "var(--rk-text-muted)" }}>Failed sends</span>
-                <span style={{ color: "var(--rk-text)" }}>{stats.failed}</span>
-              </div>
+            <div className="space-y-3">
+              {[
+                { label: "Open rate", value: stats.openRate },
+                { label: "Click rate", value: stats.clickRate },
+                { label: "Failed sends", value: stats.failed },
+              ].map((row) => (
+                <div key={row.label} className="flex items-center justify-between text-xs">
+                  <span style={{ color: "var(--wm-text-muted)" }}>{row.label}</span>
+                  <span className="font-medium" style={{ color: "var(--wm-text)" }}>{row.value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

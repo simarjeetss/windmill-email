@@ -37,7 +37,7 @@ export default function EngagementTrend({ data }: EngagementTrendProps) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] uppercase tracking-widest" style={{ color: "var(--rk-text-sub)" }}>
+        <span className="text-[11px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>
           Metrics
         </span>
         {SERIES_OPTIONS.map((option) => (
