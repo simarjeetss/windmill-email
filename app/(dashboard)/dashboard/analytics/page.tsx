@@ -11,6 +11,7 @@ import {
 import EngagementTrend from "@/components/analytics/engagement-trend";
 import AnalyticsFilters from "@/components/analytics/analytics-filters";
 import AnalyticsRangeSelector from "@/components/analytics/analytics-range-selector";
+import AnalyticsWarningBanner from "@/components/analytics/analytics-warning-banner";
 import EmailLog from "@/components/analytics/email-log";
 import type { EmailLogEntry } from "@/components/analytics/email-log";
 import { Button } from "@/components/ui/button";
@@ -168,6 +169,7 @@ export default async function AnalyticsPage({
 
   return (
     <div className="max-w-5xl mx-auto">
+      <AnalyticsWarningBanner />
       <div className="rk-fade-up flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
           <h1
@@ -345,7 +347,7 @@ export default async function AnalyticsPage({
                   <th className="pb-2">Contact</th>
                   <th className="pb-2">Company</th>
                   <th className="pb-2">Sent</th>
-                  <th className="pb-2">Opened</th>
+                  <th className="pb-2">Opened (est.)</th>
                   <th className="pb-2">Clicked</th>
                   <th className="pb-2">Last activity</th>
                   <th className="pb-2">Status</th>

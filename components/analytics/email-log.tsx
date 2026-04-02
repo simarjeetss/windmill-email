@@ -31,6 +31,11 @@ function deriveDisplayStatus(entry: EmailLogEntry): string {
   return entry.status || "pending";
 }
 
+function statusLabel(status: string): string {
+  if (status === "opened") return "Opened(est.)";
+  return status;
+}
+
 function formatTs(value: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat(undefined, {
@@ -188,7 +193,7 @@ function EmailDetailDialog({
                 className="inline-block w-1.5 h-1.5 rounded-full"
                 style={{ background: sty.color }}
               />
-              {displayStatus}
+              {statusLabel(displayStatus)}
             </span>
 
             {/* Divider dot */}
@@ -203,7 +208,7 @@ function EmailDetailDialog({
               <>
                 <span className="w-0.5 h-0.5 rounded-full" style={{ background: "var(--wm-text-sub)" }} />
                 <span style={{ color: "#3b82f6" }}>
-                  Opened {formatTs(entry.openedAt)}
+                  Opened (est.) {formatTs(entry.openedAt)}
                 </span>
               </>
             )}
@@ -409,7 +414,7 @@ export default function EmailLog({ entries }: { entries: EmailLogEntry[] }) {
               <th className="pb-3 pr-4 font-medium">Subject</th>
               <th className="pb-3 pr-4 font-medium hidden md:table-cell">Campaign</th>
               <th className="pb-3 pr-4 font-medium hidden sm:table-cell">Sent</th>
-              <th className="pb-3 pr-4 font-medium hidden lg:table-cell">Opened</th>
+              <th className="pb-3 pr-4 font-medium hidden lg:table-cell">Opened (est.)</th>
               <th className="pb-3 pr-4 font-medium hidden lg:table-cell">Clicked</th>
               <th className="pb-3 font-medium">Status</th>
             </tr>
@@ -518,7 +523,7 @@ export default function EmailLog({ entries }: { entries: EmailLogEntry[] }) {
                           color: statusStyle.color,
                         }}
                       >
-                        {displayStatus}
+                        {statusLabel(displayStatus)}
                       </span>
                     </td>
                   </tr>
