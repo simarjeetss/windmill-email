@@ -31,13 +31,13 @@ import {
 const KPI_DESCRIPTIONS: Record<string, string> = {
   sent: "Total emails sent in the selected window.",
   delivered: "Unique deliveries to recipient mail servers (Resend webhook).",
-  opened: "Unique opens (trusted — excludes suspected prefetch/bot pixels).",
+  opened: "Estimated unique opens based on provider tracking (not a guaranteed human read).",
   openedRaw: "Unique opens including suspected proxy/prefetch opens.",
   clicked: "Unique link clicks tracked per email.",
-  openRate: "Trusted opens divided by delivered (or sent if delivery not yet recorded).",
+  openRate: "Estimated opens divided by delivered (or sent if delivery not yet recorded).",
   openRateRaw: "Raw opens divided by delivered (or sent).",
   clickRate: "Unique clicks divided by delivered (or sent).",
-  clickToOpenRate: "Unique clicks divided by trusted unique opens.",
+  clickToOpenRate: "Unique clicks divided by estimated unique opens.",
 };
 
 function formatPercent(value: string) {
@@ -177,7 +177,7 @@ export default async function AnalyticsPage({
             Analytics
           </h1>
           <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
-            Track sends, opens, and clicks by campaign.
+            Track sends, estimated opens, and clicks by campaign.
           </p>
         </div>
         <AnalyticsRangeSelector
@@ -236,7 +236,7 @@ export default async function AnalyticsPage({
                     {topCampaign.name}
                   </div>
                   <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
-                    {topCampaign.opened} opens · {topCampaign.openRate} open rate
+                    {topCampaign.opened} est. opens · {topCampaign.openRate} est. open rate
                   </div>
                   <Link href={`/dashboard/campaigns/${topCampaign.id}`}>
                     <Button size="sm" variant="outline">
@@ -246,7 +246,7 @@ export default async function AnalyticsPage({
                 </div>
               ) : (
                 <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
-                  No opens yet. Send your next campaign to unlock more data.
+                  No open signals yet. Send your next campaign to unlock more data.
                 </div>
               )}
             </CardContent>
@@ -291,10 +291,10 @@ export default async function AnalyticsPage({
         {[
           { key: "sent", label: "Sent", value: stats.sent },
           { key: "delivered", label: "Delivered", value: stats.delivered },
-          { key: "opened", label: "Opens (trusted)", value: stats.opened },
+          { key: "opened", label: "Opens (est.)", value: stats.opened },
           { key: "openedRaw", label: "Opens (raw)", value: stats.openedRaw },
           { key: "clicked", label: "Clicks", value: stats.clicked },
-          { key: "openRate", label: "Open rate", value: formatPercent(stats.openRate) },
+          { key: "openRate", label: "Open rate (est.)", value: formatPercent(stats.openRate) },
           { key: "openRateRaw", label: "Open rate (raw)", value: formatPercent(stats.openRateRaw) },
           { key: "clickRate", label: "Click rate", value: formatPercent(stats.clickRate) },
           { key: "clickToOpenRate", label: "CTOR", value: formatPercent(stats.clickToOpenRate) },
@@ -333,8 +333,8 @@ export default async function AnalyticsPage({
         <CardHeader>
           <CardTitle>Contact engagement</CardTitle>
           <CardDescription>
-            Per-contact delivery status for the selected campaign. Opened counts use trusted opens from
-            analytics events (prefetch/bot pixel loads excluded when detected).
+            Per-contact delivery status for the selected campaign. Opened counts are estimates from
+            tracking events and may include provider/client-side noise.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -424,8 +424,8 @@ export default async function AnalyticsPage({
         <CardHeader>
           <CardTitle>Email log</CardTitle>
           <CardDescription>
-            Every email sent — who received it, the subject line, and delivery &amp; engagement. Opened
-            times show trusted opens only (same rules as the KPIs above).
+            Every email sent — who received it, the subject line, and delivery &amp; engagement.
+            Opened times are estimates from tracking events (same rules as KPIs above).
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -72,7 +72,7 @@ export default async function DashboardPage() {
     {
       label: "Emails Sent",
       value: stats.sent.toString(),
-      sub: stats.sent ? `${stats.opened} opened · ${stats.clicked} clicked` : "Ready to send",
+      sub: stats.sent ? `${stats.opened} est. opens · ${stats.clicked} clicks` : "Ready to send",
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
           <line x1="22" y1="2" x2="11" y2="13" />
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
       iconColor: "#059669",
     },
     {
-      label: "Open Rate",
+      label: "Open Rate (est.)",
       value: stats.openRate,
       sub: stats.clickRate === "—" ? "No activity yet" : `Click rate ${stats.clickRate}`,
       icon: (
@@ -320,7 +320,7 @@ export default async function DashboardPage() {
             </h2>
             <div className="space-y-3">
               {[
-                { label: "Open rate", value: stats.openRate },
+                { label: "Open rate (est.)", value: stats.openRate },
                 { label: "Click rate", value: stats.clickRate },
                 { label: "Failed sends", value: stats.failed },
               ].map((row) => (

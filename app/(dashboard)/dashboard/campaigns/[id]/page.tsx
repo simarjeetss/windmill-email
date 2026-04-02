@@ -85,8 +85,8 @@ export default async function CampaignDetailPage({
           { label: "Contacts",   value: contacts.length },
           { label: "Sent",       value: stats.sent },
           { label: "Delivered",  value: stats.delivered },
-          { label: "Opened",     value: stats.opened },
-          { label: "Open Rate",  value: stats.openRate },
+          { label: "Opened (est.)", value: stats.opened },
+          { label: "Open Rate (est.)", value: stats.openRate },
           { label: "Click Rate", value: stats.clickRate },
         ].map((s) => (
           <div

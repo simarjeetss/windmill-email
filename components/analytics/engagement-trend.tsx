@@ -7,7 +7,7 @@ import type { TimelinePoint } from "@/lib/analytics/metrics";
 
 const SERIES_OPTIONS = [
   { key: "sent", label: "Sent", color: "var(--chart-1)" },
-  { key: "opened", label: "Opened", color: "var(--chart-2)" },
+  { key: "opened", label: "Opened (est.)", color: "var(--chart-2)" },
   { key: "clicked", label: "Clicked", color: "var(--chart-3)" },
   { key: "failed", label: "Failed", color: "#f87171" },
 ] as const;
