@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { deleteContact } from "@/lib/supabase/campaigns";
+import { deleteContact, bulkDeleteContacts } from "@/lib/supabase/campaigns";
 import type { ContactWithCampaign } from "@/lib/supabase/campaigns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,9 +113,9 @@ export default function ContactsTable({ contacts }: { contacts: ContactWithCampa
     if (rows.length === 0) return;
     if (!confirm(`Delete ${rows.length} contact${rows.length !== 1 ? "s" : ""}?`)) return;
     startBulk(async () => {
-      for (const row of rows) {
-        await deleteContact(row.id, row.campaign_id);
-      }
+      const ids = rows.map((r) => r.id);
+      const campaignIds = rows.map((r) => r.campaign_id);
+      await bulkDeleteContacts(ids, campaignIds);
       setSelectedIds(new Set());
     });
   }

@@ -5,11 +5,14 @@ import EmailComposer from "@/components/campaigns/email-composer";
 import ContactsTable from "@/components/campaigns/contacts-table";
 import AddContactForm from "@/components/campaigns/add-contact-form";
 import CsvImportButton from "@/components/campaigns/csv-import-button";
+import SmartImportButton from "@/components/campaigns/smart-import-button";
+import CampaignFileList from "@/components/campaigns/campaign-file-list";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
+import type { CampaignFile } from "@/lib/supabase/campaign-files";
 
-type Tab = "email" | "contacts";
+type Tab = "email" | "contacts" | "files";
 
 interface CampaignTabsProps {
   campaignId: string;
@@ -18,6 +21,7 @@ interface CampaignTabsProps {
   initialTemplate: EmailTemplate | null;
   contacts: Contact[];
   initialProfile: UserProfile | null;
+  files: CampaignFile[];
 }
 
 export default function CampaignTabs({
@@ -27,6 +31,7 @@ export default function CampaignTabs({
   initialTemplate,
   contacts,
   initialProfile,
+  files,
 }: CampaignTabsProps) {
   const [tab, setTab] = useState<Tab>("email");
 
@@ -101,6 +106,40 @@ export default function CampaignTabs({
             {contacts.length}
           </span>
         </button>
+
+        {/* Files tab */}
+        <button
+          onClick={() => setTab("files")}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          style={
+            tab === "files"
+              ? {
+                  background: "rgba(43,122,95,0.12)",
+                  color: "var(--wm-accent)",
+                  border: "1px solid rgba(43,122,95,0.25)",
+                }
+              : {
+                  background: "transparent",
+                  color: "var(--wm-text-muted)",
+                  border: "1px solid transparent",
+                }
+          }
+        >
+          <FilesIcon active={tab === "files"} />
+          Files
+          {files.length > 0 && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded-full font-medium ml-0.5 tabular-nums"
+              style={{
+                background: tab === "files" ? "rgba(43,122,95,0.15)" : "var(--wm-surface-2)",
+                color: tab === "files" ? "var(--wm-accent)" : "var(--wm-text-sub)",
+                border: tab === "files" ? "1px solid rgba(43,122,95,0.2)" : "1px solid var(--wm-border)",
+              }}
+            >
+              {files.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ── Email Template panel ─────────────────────────────────────────── */}
@@ -137,8 +176,9 @@ export default function CampaignTabs({
               >
                 {contacts.length}
               </span>
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
                 <CsvImportButton campaignId={campaignId} />
+                <SmartImportButton campaignId={campaignId} />
               </div>
             </div>
             <ContactsTable contacts={contacts} campaignId={campaignId} />
@@ -154,6 +194,33 @@ export default function CampaignTabs({
             </h2>
             <AddContactForm campaignId={campaignId} />
           </div>
+        </div>
+      )}
+
+      {/* ── Files panel ──────────────────────────────────────────────────── */}
+      {tab === "files" && (
+        <div className="max-w-2xl">
+          <div className="flex items-center gap-2 mb-3">
+            <h2
+              className="text-sm font-semibold"
+              style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
+            >
+              Uploaded Files
+            </h2>
+            {files.length > 0 && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  background: "var(--wm-accent-dim)",
+                  color: "var(--wm-accent)",
+                  border: "1px solid rgba(43,122,95,0.2)",
+                }}
+              >
+                {files.length}
+              </span>
+            )}
+          </div>
+          <CampaignFileList files={files} campaignId={campaignId} />
         </div>
       )}
     </div>
@@ -199,6 +266,28 @@ function ContactsIcon({ active }: { active: boolean }) {
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function FilesIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ color: active ? "var(--wm-accent)" : "var(--wm-text-muted)" }}
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
     </svg>
   );
 }

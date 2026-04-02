@@ -1,6 +1,7 @@
 import { getCampaign, getContacts } from "@/lib/supabase/campaigns";
 import { getProfile } from "@/lib/supabase/profile";
 import { getCampaignStats } from "@/lib/supabase/sent-emails";
+import { getCampaignFiles } from "@/lib/supabase/campaign-files";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import CampaignStatusSelect from "@/components/campaigns/campaign-status-select";
@@ -25,7 +26,8 @@ export default async function CampaignDetailPage({
     { data: contacts, error: ctError },
     { data: profile },
     stats,
-  ] = await Promise.all([getCampaign(id), getContacts(id), getProfile(), getCampaignStats(id)]);
+    { data: files },
+  ] = await Promise.all([getCampaign(id), getContacts(id), getProfile(), getCampaignStats(id), getCampaignFiles(id)]);
 
   if (cError || !campaign) notFound();
 
@@ -122,6 +124,7 @@ export default async function CampaignDetailPage({
         initialTemplate={null}
         contacts={contacts}
         initialProfile={profile}
+        files={files}
       />
     </div>
   );

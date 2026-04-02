@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { importContacts } from "@/lib/supabase/campaigns";
+import { uploadCampaignFile } from "@/lib/supabase/campaign-files";
 
 function parseCSV(text: string): { email: string; first_name?: string; last_name?: string; company?: string }[] {
   const lines = text.trim().split(/\r?\n/);
@@ -68,6 +69,15 @@ export default function CsvImportButton({ campaignId }: { campaignId: string }) 
           setError(res.error);
         } else {
           setResult({ inserted: res.inserted, skipped: res.skipped });
+
+          // Upload the source file alongside the import
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("campaignId", campaignId);
+          const uploadRes = await uploadCampaignFile(fd);
+          if (uploadRes.error) {
+            console.error("File upload failed:", uploadRes.error);
+          }
         }
       });
     };

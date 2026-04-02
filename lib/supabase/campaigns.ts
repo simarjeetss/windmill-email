@@ -275,3 +275,32 @@ export async function deleteContact(
   revalidatePath(`/dashboard/campaigns/${campaignId}`);
   return { error: null };
 }
+
+export async function bulkDeleteContacts(
+  contactIds: string[],
+  campaignIds: string[]
+): Promise<{ deleted: number; error: string | null }> {
+  if (contactIds.length === 0) return { deleted: 0, error: null };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { deleted: 0, error: "Not authenticated" };
+
+  const { data, error } = await supabase
+    .from("contacts")
+    .delete()
+    .in("id", contactIds)
+    .eq("user_id", user.id)
+    .select("id");
+
+  if (error) return { deleted: 0, error: error.message };
+
+  // Revalidate each unique campaign path once
+  const uniqueCampaignIds = [...new Set(campaignIds)];
+  for (const cid of uniqueCampaignIds) {
+    revalidatePath(`/dashboard/campaigns/${cid}`);
+  }
+  revalidatePath("/dashboard/contacts");
+
+  return { deleted: data?.length ?? 0, error: null };
+}
