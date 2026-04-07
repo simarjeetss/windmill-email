@@ -16,6 +16,49 @@ function safeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+function parseRetainedAttachmentIds(value: FormDataEntryValue | null): string[] {
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+async function cleanupPendingAttachments(
+  userId: string,
+  retainedIds: string[]
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: rows, error } = await supabase
+    .from("email_template_attachments")
+    .select("id, storage_path")
+    .eq("user_id", userId)
+    .is("template_id", null);
+
+  if (error) return { error: error.message };
+  if (!rows?.length) return { error: null };
+
+  const keep = new Set(retainedIds);
+  const stale = rows.filter((row) => !keep.has(row.id));
+  if (stale.length === 0) return { error: null };
+
+  const admin = createAdminClient();
+  await admin.storage.from(BUCKET).remove(stale.map((row) => row.storage_path));
+
+  const { error: deleteError } = await supabase
+    .from("email_template_attachments")
+    .delete()
+    .eq("user_id", userId)
+    .is("template_id", null)
+    .in("id", stale.map((row) => row.id));
+
+  if (deleteError) return { error: deleteError.message };
+  return { error: null };
+}
+
 /** Upload a file; link to template when `templateId` is set, otherwise stage under `pending/`. */
 export async function uploadTemplateAttachment(
   formData: FormData
@@ -29,6 +72,7 @@ export async function uploadTemplateAttachment(
   const file = formData.get("file") as File | null;
   const templateIdRaw = formData.get("templateId") as string | null;
   const templateId = templateIdRaw?.trim() || null;
+  const retainedAttachmentIds = parseRetainedAttachmentIds(formData.get("retainedAttachmentIds"));
 
   if (!file) return { data: null, error: "Missing file." };
 
@@ -44,6 +88,9 @@ export async function uploadTemplateAttachment(
       .eq("user_id", user.id)
       .maybeSingle();
     if (!tmpl) return { data: null, error: "Template not found." };
+  } else {
+    const { error: cleanupError } = await cleanupPendingAttachments(user.id, retainedAttachmentIds);
+    if (cleanupError) return { data: null, error: cleanupError };
   }
 
   let countQ = supabase

@@ -245,6 +245,7 @@ export default function EmailComposer({
     setSendError("");
     setAttachError("");
     setTab("compose");
+    // Brief flash so the user sees the content loaded
     setTimeout(() => bodyRef.current?.focus(), 80);
   }
 
@@ -253,21 +254,30 @@ export default function EmailComposer({
     setAttachError("");
     setIsUploadingAttach(true);
     try {
+      let nextAttachments = [...attachments];
       for (const file of Array.from(fileList)) {
-        if (attachments.length >= MAX_TEMPLATE_ATTACHMENTS) {
+        if (nextAttachments.length >= MAX_TEMPLATE_ATTACHMENTS) {
           setAttachError(`You can attach up to ${MAX_TEMPLATE_ATTACHMENTS} files.`);
           break;
         }
         const fd = new FormData();
         fd.append("file", file);
-        if (loadedTemplateId) fd.append("templateId", loadedTemplateId);
+        if (loadedTemplateId) {
+          fd.append("templateId", loadedTemplateId);
+        } else {
+          fd.append(
+            "retainedAttachmentIds",
+            JSON.stringify(nextAttachments.map((attachment) => attachment.id))
+          );
+        }
         const { data, error } = await uploadTemplateAttachment(fd);
         if (error) {
           setAttachError(error);
           break;
         }
         if (data) {
-          setAttachments((prev) => [...prev, data]);
+          nextAttachments = [...nextAttachments, data];
+          setAttachments(nextAttachments);
           setSaveStatus("idle");
           setSendStatus("idle");
         }
@@ -928,7 +938,7 @@ export default function EmailComposer({
                   opacity: attachments.length >= MAX_TEMPLATE_ATTACHMENTS ? 0.5 : 1,
                 }}
               >
-                {isUploadingAttach ? "Uploading…" : "Add files"}
+                {isUploadingAttach ? "Uploading..." : "Add files"}
               </button>
               <span className="text-[10px]" style={{ color: "var(--wm-text-sub)" }}>
                 {attachments.length}/{MAX_TEMPLATE_ATTACHMENTS} · max 10 MB each
