@@ -66,23 +66,23 @@ export default async function AnalyticsPage({
     ? Math.max(1, Math.min(rawRange, 365))
     : 30;
   const selectedCampaignId = resolvedSearchParams?.campaign ?? "";
-  const { campaigns, rows, error, eventStats, timelineEvents } = await getAnalyticsOverview(
-    rangeDays,
-    selectedCampaignId || null
-  );
+  const { campaigns, rows, error } = await getAnalyticsOverview(rangeDays);
 
   const filteredRows = selectedCampaignId
     ? rows.filter((row) => row.campaign_id === selectedCampaignId)
     : rows;
 
-  const rowsForEngagement = filteredRows.map((row) => ({
-    ...(row as SentEmailRow),
-    opened_at: row.opened_at_display,
-    clicked_at: row.clicked_at_display,
-  })) as SentEmailRow[];
+  const rowsForEngagement = filteredRows as SentEmailRow[];
+  const supabase = await createClient();
+  const since = new Date();
+  since.setDate(since.getDate() - Math.max(1, Math.min(rangeDays, 365)));
+  const { data: selectedRpcData } = await supabase.rpc("email_event_stats", {
+    p_since: since.toISOString(),
+    p_campaign_id: selectedCampaignId || null,
+  });
 
-  const stats = calculateCampaignStats(rowsForEngagement, eventStats);
-  const timeline = buildTimeline(filteredRows as SentEmailRow[], rangeDays, timelineEvents);
+  const stats = calculateCampaignStats(rowsForEngagement, parseEventStats(selectedRpcData));
+  const timeline = buildTimeline(filteredRows as SentEmailRow[], rangeDays);
   const contacts = summarizeContacts(rowsForEngagement);
 
   const emailLogEntries: EmailLogEntry[] = filteredRows.map((row) => {
@@ -99,23 +99,14 @@ export default async function AnalyticsPage({
       campaignName: campaign?.name ?? null,
       status: row.status ?? "pending",
       sentAt: row.sent_at,
-      openedAt: row.opened_at_display,
-      clickedAt: row.clicked_at_display,
+      openedAt: row.opened_at,
+      clickedAt: row.clicked_at,
     };
   });
 
   const campaignSummaries = await Promise.all(
     campaigns.map(async (campaign) => {
-      const campaignRows = rows
-        .filter((row) => row.campaign_id === campaign.id)
-        .map((row) => ({
-          ...(row as SentEmailRow),
-          opened_at: row.opened_at_display,
-          clicked_at: row.clicked_at_display,
-        })) as SentEmailRow[];
-      const supabase = await createClient();
-      const since = new Date();
-      since.setDate(since.getDate() - Math.max(1, Math.min(rangeDays, 365)));
+      const campaignRows = rows.filter((row) => row.campaign_id === campaign.id) as SentEmailRow[];
       const { data: rpcData } = await supabase.rpc("email_event_stats", {
         p_since: since.toISOString(),
         p_campaign_id: campaign.id,
