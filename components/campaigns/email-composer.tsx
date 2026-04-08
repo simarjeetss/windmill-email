@@ -2,7 +2,12 @@
 
 import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { createTemplate } from "@/lib/supabase/email-templates";
-import { sendCampaignNow } from "@/lib/supabase/sent-emails";
+import {
+  enqueueCampaignSend,
+  getLatestCampaignSendJob,
+  kickCampaignSendJob,
+  type CampaignSendJobProgress,
+} from "@/lib/supabase/sent-emails";
 import {
   MAX_TEMPLATE_ATTACHMENTS,
   type TemplateAttachment,
@@ -58,6 +63,7 @@ export default function EmailComposer({
   initialTemplate,
   previewContacts,
   initialProfile,
+  initialSendJob,
 }: {
   campaignId: string;
   campaignName: string;
@@ -65,6 +71,7 @@ export default function EmailComposer({
   initialTemplate: EmailTemplate | null;
   previewContacts: Contact[];
   initialProfile: UserProfile | null;
+  initialSendJob: CampaignSendJobProgress | null;
 }) {
   const [subject,      setSubject]     = useState(initialTemplate?.subject ?? "");
   const [body,         setBody]        = useState(initialTemplate?.body    ?? "");
@@ -90,8 +97,9 @@ export default function EmailComposer({
   // Send-now modal state
   const [showSendModal, setShowSendModal] = useState(false);
   const [sendError, setSendError] = useState("");
-  const [sendStatus, setSendStatus] = useState<"idle" | "sent" | "error">("idle");
-  const [sendSummary, setSendSummary] = useState<{ sent: number; failed: number } | null>(null);
+  const [sendStatus, setSendStatus] = useState<"idle" | "queued" | "error">("idle");
+  const [sendSummary, setSendSummary] = useState<{ queued: number } | null>(null);
+  const [jobProgress, setJobProgress] = useState<CampaignSendJobProgress | null>(initialSendJob);
 
   /** Files linked to the current draft (saved template and/or staged uploads). */
   const [attachments, setAttachments] = useState<TemplateAttachment[]>([]);
@@ -112,6 +120,32 @@ export default function EmailComposer({
     }
   }, [showSaveModal]);
 
+  const refreshSendJob = useCallback(async () => {
+    const { data } = await getLatestCampaignSendJob(campaignId);
+    setJobProgress(data);
+    if (data?.hasMore) {
+      await kickCampaignSendJob(data.job.id);
+    }
+  }, [campaignId]);
+
+  useEffect(() => {
+    void refreshSendJob();
+  }, [refreshSendJob]);
+
+  useEffect(() => {
+    if (!jobProgress?.hasMore) return;
+    const timer = setInterval(() => {
+      void refreshSendJob();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [jobProgress?.job.id, jobProgress?.hasMore, refreshSendJob]);
+
+  useEffect(() => {
+    if (sendStatus === "queued" && jobProgress?.job.status && jobProgress.job.status !== "queued") {
+      setSendStatus("idle");
+    }
+  }, [jobProgress?.job.status, sendStatus]);
+
   const previewContact  = previewContacts[previewIdx] ?? null;
   const attachSig = attachments.map((a) => a.id).sort().join(",");
   const isDirty =
@@ -122,6 +156,7 @@ export default function EmailComposer({
   const senderName    = profile?.full_name || null;
   const senderCompany = profile?.company   || null;
   const profileMissing = !senderName;
+  const hasActiveSendJob = Boolean(jobProgress?.hasMore);
 
   // Insert variable at cursor in body textarea
   function insertVariable(v: string) {
@@ -184,6 +219,12 @@ export default function EmailComposer({
     setSendSummary(null);
     setSendError("");
 
+    if (hasActiveSendJob) {
+      setSendStatus("error");
+      setSendError("This campaign is already sending in the background.");
+      return;
+    }
+
     if (!subject.trim() || !body.trim()) {
       setSendStatus("error");
       setSendError(!subject.trim() ? "Subject is required before sending." : "Body is required before sending.");
@@ -206,7 +247,7 @@ export default function EmailComposer({
   function handleConfirmSend() {
     setSendError("");
     startSend(async () => {
-      const result = await sendCampaignNow(
+      const result = await enqueueCampaignSend(
         campaignId,
         subject,
         body,
@@ -217,18 +258,10 @@ export default function EmailComposer({
         setSendError(result.error);
         return;
       }
-      setSendStatus("sent");
-      setSendSummary({ sent: result.sent, failed: result.failed });
+      setSendStatus("queued");
+      setSendSummary({ queued: result.queued });
       setShowSendModal(false);
-      // Clear the composer so the user starts fresh for the next send
-      setSubject("");
-      setBody("");
-      setSavedSubject("");
-      setSavedBody("");
-      setAttachments([]);
-      setLoadedTemplateId(null);
-      setSavedAttachSig("");
-      setSaveStatus("idle");
+      await refreshSendJob();
     });
   }
 
@@ -613,12 +646,12 @@ export default function EmailComposer({
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
               <span className="text-sm font-semibold" style={{ color: "var(--wm-text)", fontFamily: "var(--font-display, serif)" }}>
-                Send campaign now
+                Queue campaign send
               </span>
             </div>
 
             <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
-              This will send to <strong style={{ color: "var(--wm-text)" }}>{previewContacts.length}</strong> contact{previewContacts.length === 1 ? "" : "s"}.
+              This will queue <strong style={{ color: "var(--wm-text)" }}>{previewContacts.length}</strong> contact{previewContacts.length === 1 ? "" : "s"} for background delivery.
               {attachments.length > 0 && (
                 <span>
                   {" "}
@@ -659,17 +692,17 @@ export default function EmailComposer({
               <button
                 onClick={handleConfirmSend}
                 aria-label="Confirm send now"
-                disabled={isSending}
+                disabled={isSending || hasActiveSendJob}
                 className="px-4 py-2 rounded-xl text-xs font-semibold transition-all"
                 style={{
-                  background: isSending ? "rgba(43,122,95,0.4)" : "var(--wm-accent)",
+                  background: isSending || hasActiveSendJob ? "rgba(43,122,95,0.4)" : "var(--wm-accent)",
                   color: "var(--wm-accent-text)",
                   border: "none",
-                  cursor: isSending ? "not-allowed" : "pointer",
-                  opacity: isSending ? 0.7 : 1,
+                  cursor: isSending || hasActiveSendJob ? "not-allowed" : "pointer",
+                  opacity: isSending || hasActiveSendJob ? 0.7 : 1,
                 }}
               >
-                {isSending ? "Sending…" : "Send now"}
+                {isSending ? "Queueing…" : hasActiveSendJob ? "Already running" : "Queue send"}
               </button>
             </div>
           </div>
@@ -802,17 +835,17 @@ export default function EmailComposer({
           {/* Send Now */}
           <button
             onClick={handleSendClick}
-            disabled={isSending || isGenerating}
+            disabled={isSending || isGenerating || hasActiveSendJob}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
               background: "rgba(212, 168, 83, 0.1)",
               border: "1px solid rgba(212, 168, 83, 0.3)",
               color: "var(--wm-accent)",
-              cursor: isSending ? "not-allowed" : "pointer",
-              opacity: isSending ? 0.6 : 1,
+              cursor: isSending || hasActiveSendJob ? "not-allowed" : "pointer",
+              opacity: isSending || hasActiveSendJob ? 0.6 : 1,
             }}
           >
-            {isSending ? "Sending…" : "Send now"}
+            {isSending ? "Queueing…" : hasActiveSendJob ? "Send running…" : "Send now"}
           </button>
 
           {/* Save */}
@@ -862,15 +895,15 @@ export default function EmailComposer({
         </div>
       )}
 
-      {sendStatus === "sent" && (
+      {sendStatus === "queued" && (
         <div
           className="rk-fade-in px-4 py-2.5 rounded-lg text-xs flex items-center gap-2"
           style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--wm-accent)" }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           {sendSummary
-            ? `Sent ${sendSummary.sent} emails${sendSummary.failed ? `, ${sendSummary.failed} failed` : ""}`
-            : "Emails sent"}
+            ? `Queued ${sendSummary.queued} emails for background sending`
+            : "Campaign queued"}
         </div>
       )}
       {sendStatus === "error" && sendError && (
@@ -881,7 +914,6 @@ export default function EmailComposer({
           {sendError}
         </div>
       )}
-
       {/* ── COMPOSE tab ─────────────────────────────────────────────────── */}
       {tab === "compose" && (
         <div

@@ -334,12 +334,11 @@ export async function loadAttachmentsForSend(
 ): Promise<{ data: AttachmentPayload[]; error: string | null }> {
   if (attachmentIds.length === 0) return { data: [], error: null };
 
-  const supabase = await createClient();
   const admin = createAdminClient();
   const out: AttachmentPayload[] = [];
 
   for (const id of attachmentIds) {
-    const { data: row, error } = await supabase
+    const { data: row, error } = await admin
       .from("email_template_attachments")
       .select("*")
       .eq("id", id)

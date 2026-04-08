@@ -43,6 +43,9 @@ const mockGenerateEmailWithAI = vi.fn();
 const mockCreateTemplate      = vi.fn();
 const mockGetAllTemplates     = vi.fn();
 const mockPolishEmailWithAI   = vi.fn();
+const mockEnqueueCampaignSend = vi.fn().mockResolvedValue({ jobId: "job-1", queued: 1, error: null });
+const mockGetLatestCampaignSendJob = vi.fn().mockResolvedValue({ data: null, error: null });
+const mockKickCampaignSendJob = vi.fn().mockResolvedValue({ ok: true, error: null });
 
 vi.mock("@/lib/ai/generate-email", () => ({
   generateEmailWithAI: (...args: unknown[]) => mockGenerateEmailWithAI(...args),
@@ -64,7 +67,9 @@ vi.mock("@/lib/supabase/template-attachments", () => ({
 }));
 
 vi.mock("@/lib/supabase/sent-emails", () => ({
-  sendCampaignNow: vi.fn().mockResolvedValue({ sent: 1, failed: 0, error: null }),
+  enqueueCampaignSend: (...args: unknown[]) => mockEnqueueCampaignSend(...args),
+  getLatestCampaignSendJob: (...args: unknown[]) => mockGetLatestCampaignSendJob(...args),
+  kickCampaignSendJob: (...args: unknown[]) => mockKickCampaignSendJob(...args),
 }));
 
 // ─── Static imports (after mocks) ─────────────────────────────────────────────
@@ -101,10 +106,52 @@ function makeContacts(n: number): Contact[] {
   }));
 }
 
+function makeSendJob(
+  overrides: Partial<import("@/lib/supabase/sent-emails").CampaignSendJobProgress> = {}
+): import("@/lib/supabase/sent-emails").CampaignSendJobProgress {
+  return {
+    job: {
+      id: "job-1",
+      user_id: "user-1",
+      campaign_id: "camp-1",
+      subject: "Queued subject",
+      body: "Queued body",
+      attachment_ids: [],
+      status: "running",
+      total_count: 2,
+      sent_count: 1,
+      failed_count: 0,
+      claimed_at: new Date().toISOString(),
+      completed_at: null,
+      last_error: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    queued: 1,
+    processing: 0,
+    sent: 1,
+    failed: 0,
+    total: 2,
+    hasMore: true,
+    ...overrides,
+  };
+}
+
+function makeProfile(): import("@/lib/supabase/profile").UserProfile {
+  return {
+    id: "user-1",
+    full_name: "Alex Sender",
+    company: "Acme",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
 function renderComposer(opts: {
   template?: EmailTemplate | null;
   contacts?: Contact[];
   profile?: import("@/lib/supabase/profile").UserProfile | null;
+  sendJob?: import("@/lib/supabase/sent-emails").CampaignSendJobProgress | null;
 } = {}) {
   render(
     <EmailComposer
@@ -114,6 +161,7 @@ function renderComposer(opts: {
       initialTemplate={opts.template ?? null}
       previewContacts={opts.contacts ?? makeContacts(2)}
       initialProfile={opts.profile ?? null}
+      initialSendJob={opts.sendJob ?? null}
     />
   );
 }
@@ -235,7 +283,7 @@ describe("EmailComposer", () => {
   // ── Rendering ─────────────────────────────────────────────────────────────
 
   it("renders subject input and body textarea", () => {
-    renderComposer();
+    renderComposer({ profile: makeProfile() });
     expect(screen.getByRole("textbox", { name: /email subject/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /email body/i })).toBeInTheDocument();
   });
@@ -247,12 +295,12 @@ describe("EmailComposer", () => {
   });
 
   it("renders Generate with AI button", () => {
-    renderComposer();
+    renderComposer({ profile: makeProfile() });
     expect(screen.getByRole("button", { name: /generate with ai/i })).toBeInTheDocument();
   });
 
   it("renders Save template button", () => {
-    renderComposer();
+    renderComposer({ profile: makeProfile() });
     expect(screen.getByRole("button", { name: /save template/i })).toBeInTheDocument();
   });
 
@@ -371,6 +419,32 @@ describe("EmailComposer", () => {
     await userEvent.type(screen.getByRole("textbox", { name: /template name/i }), "My Template");
     await userEvent.click(screen.getByRole("button", { name: /confirm save template/i }));
     await waitFor(() => expect(screen.getByText(/database error/i)).toBeInTheDocument());
+  });
+
+  it("queues a background send from the send modal", async () => {
+    mockEnqueueCampaignSend.mockResolvedValueOnce({ jobId: "job-1", queued: 2, error: null });
+    mockGetLatestCampaignSendJob.mockResolvedValueOnce({ data: null, error: null });
+    mockGetLatestCampaignSendJob.mockResolvedValueOnce({
+      data: makeSendJob({ queued: 2, processing: 0, sent: 0, total: 2 }),
+      error: null,
+    });
+    renderComposer({ profile: makeProfile() });
+    await userEvent.type(screen.getByRole("textbox", { name: /email subject/i }), "Queued subject");
+    await userEvent.type(screen.getByRole("textbox", { name: /email body/i }), "Queued body");
+    await userEvent.click(screen.getByRole("button", { name: /send now/i }));
+    await waitFor(() => expect(screen.getByText(/queue campaign send/i)).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /confirm send now/i }));
+    await waitFor(() =>
+      expect(mockEnqueueCampaignSend).toHaveBeenCalledWith("camp-1", "Queued subject", "Queued body", [])
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /send running/i })).toBeDisabled()
+    );
+  });
+
+  it("disables send while a background send job is active", () => {
+    renderComposer({ sendJob: makeSendJob() });
+    expect(screen.getByRole("button", { name: /send running/i })).toBeDisabled();
   });
 
   // ── Preview tab ───────────────────────────────────────────────────────────

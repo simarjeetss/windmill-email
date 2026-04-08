@@ -1,12 +1,13 @@
 import { getCampaign, getContacts } from "@/lib/supabase/campaigns";
 import { getProfile } from "@/lib/supabase/profile";
-import { getCampaignStats } from "@/lib/supabase/sent-emails";
+import { getCampaignStats, getLatestCampaignSendJob } from "@/lib/supabase/sent-emails";
 import { getCampaignFiles } from "@/lib/supabase/campaign-files";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import CampaignStatusSelect from "@/components/campaigns/campaign-status-select";
 import DeleteCampaignButton from "@/components/campaigns/delete-campaign-button";
 import CampaignTabs from "@/components/campaigns/campaign-tabs";
+import SendJobSidebar from "@/components/campaigns/send-job-sidebar";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   draft:     { bg: "rgba(100,116,139,0.08)", color: "var(--wm-text-muted)", border: "rgba(100,116,139,0.15)" },
@@ -27,7 +28,15 @@ export default async function CampaignDetailPage({
     { data: profile },
     stats,
     { data: files },
-  ] = await Promise.all([getCampaign(id), getContacts(id), getProfile(), getCampaignStats(id), getCampaignFiles(id)]);
+    { data: latestSendJob },
+  ] = await Promise.all([
+    getCampaign(id),
+    getContacts(id),
+    getProfile(),
+    getCampaignStats(id),
+    getCampaignFiles(id),
+    getLatestCampaignSendJob(id),
+  ]);
 
   if (cError || !campaign) notFound();
 
@@ -117,16 +126,19 @@ export default async function CampaignDetailPage({
         </div>
       )}
 
-      {/* Tab-based: Email Template (default) + Contacts */}
-      <CampaignTabs
-        campaignId={id}
-        campaignName={campaign.name}
-        campaignDescription={campaign.description}
-        initialTemplate={null}
-        contacts={contacts}
-        initialProfile={profile}
-        files={files}
-      />
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+        <CampaignTabs
+          campaignId={id}
+          campaignName={campaign.name}
+          campaignDescription={campaign.description}
+          initialTemplate={null}
+          contacts={contacts}
+          initialProfile={profile}
+          files={files}
+          initialSendJob={latestSendJob}
+        />
+        <SendJobSidebar campaignId={id} initialSendJob={latestSendJob} />
+      </div>
     </div>
   );
 }

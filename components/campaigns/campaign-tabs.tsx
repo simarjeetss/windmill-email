@@ -11,6 +11,7 @@ import type { EmailTemplate } from "@/lib/supabase/email-templates";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
 import type { CampaignFile } from "@/lib/supabase/campaign-files";
+import type { CampaignSendJobProgress } from "@/lib/supabase/sent-emails";
 
 type Tab = "email" | "contacts" | "files";
 
@@ -22,6 +23,7 @@ interface CampaignTabsProps {
   contacts: Contact[];
   initialProfile: UserProfile | null;
   files: CampaignFile[];
+  initialSendJob: CampaignSendJobProgress | null;
 }
 
 export default function CampaignTabs({
@@ -32,6 +34,7 @@ export default function CampaignTabs({
   contacts,
   initialProfile,
   files,
+  initialSendJob,
 }: CampaignTabsProps) {
   const [tab, setTab] = useState<Tab>("email");
 
@@ -151,6 +154,7 @@ export default function CampaignTabs({
           initialTemplate={initialTemplate}
           previewContacts={contacts}
           initialProfile={initialProfile}
+          initialSendJob={initialSendJob}
         />
       )}
 

@@ -37,7 +37,7 @@ async function upsertSentEmailTimestamps(
         error: "Bounced",
       })
       .eq("id", sentId)
-      .in("status", ["pending", "sent"]);
+      .in("status", ["pending", "queued", "processing", "sent"]);
   }
   if (eventType === "complaint") {
     await supabase
@@ -48,7 +48,7 @@ async function upsertSentEmailTimestamps(
         error: "Complaint",
       })
       .eq("id", sentId)
-      .in("status", ["pending", "sent"]);
+      .in("status", ["pending", "queued", "processing", "sent"]);
   }
   if (eventType === "open") {
     await supabase.from("sent_emails").update({ opened_at: occurredAt }).eq("id", sentId).is("opened_at", null);
@@ -130,7 +130,7 @@ export async function POST(req: Request) {
       const update = supabase
         .from("sent_emails")
         .update({ status: "failed", error: "Send failed (provider)" })
-        .in("status", ["pending", "sent"]);
+        .in("status", ["pending", "queued", "processing", "sent"]);
       if (sentEmailId) {
         await update.eq("id", sentEmailId);
       } else {
