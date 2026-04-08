@@ -1,6 +1,13 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  buildEngagementDisplayFromEvents,
+  parseEventStats,
+  type EmailEventEngagementRow,
+  type EmailEventTimelineRow,
+  type EventStatsBundle,
+} from "@/lib/analytics/metrics";
 
 export type AnalyticsCampaign = {
   id: string;
@@ -28,12 +35,16 @@ export type AnalyticsRow = {
   campaigns?: {
     name?: string | null;
   } | null;
+  opened_at_display: string | null;
+  clicked_at_display: string | null;
 };
 
 export type AnalyticsOverview = {
   campaigns: AnalyticsCampaign[];
   rows: AnalyticsRow[];
   error: string | null;
+  eventStats: EventStatsBundle | null;
+  timelineEvents: EmailEventTimelineRow[];
 };
 
 export type OverviewStats = {
@@ -56,10 +67,15 @@ export type RecentActivity = {
   campaign_name: string | null;
 };
 
-export async function getAnalyticsOverview(rangeDays: number): Promise<AnalyticsOverview> {
+export async function getAnalyticsOverview(
+  rangeDays: number,
+  selectedCampaignId: string | null = null
+): Promise<AnalyticsOverview> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { campaigns: [], rows: [], error: "Not authenticated" };
+  if (!user) {
+    return { campaigns: [], rows: [], error: "Not authenticated", eventStats: null, timelineEvents: [] };
+  }
 
   const { data: campaigns, error: campaignsError } = await supabase
     .from("campaigns")
@@ -67,12 +83,14 @@ export async function getAnalyticsOverview(rangeDays: number): Promise<Analytics
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (campaignsError) return { campaigns: [], rows: [], error: campaignsError.message };
+  if (campaignsError) {
+    return { campaigns: [], rows: [], error: campaignsError.message, eventStats: null, timelineEvents: [] };
+  }
 
   const since = new Date();
   since.setDate(since.getDate() - Math.max(1, Math.min(rangeDays, 365)));
 
-  const { data: rows, error: rowsError } = await supabase
+  let rowsQuery = supabase
     .from("sent_emails")
     .select(
       "id, campaign_id, contact_id, status, subject, body, sent_at, opened_at, clicked_at, created_at, contacts(email, first_name, last_name, company), campaigns(name)"
@@ -81,12 +99,75 @@ export async function getAnalyticsOverview(rangeDays: number): Promise<Analytics
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: false });
 
-  if (rowsError) return { campaigns: campaigns ?? [], rows: [], error: rowsError.message };
+  if (selectedCampaignId) {
+    rowsQuery = rowsQuery.eq("campaign_id", selectedCampaignId);
+  }
+
+  const { data: rows, error: rowsError } = await rowsQuery;
+
+  if (rowsError) {
+    return {
+      campaigns: campaigns ?? [],
+      rows: [],
+      error: rowsError.message,
+      eventStats: null,
+      timelineEvents: [],
+    };
+  }
+
+  let eventsQuery = supabase
+    .from("email_events")
+    .select("sent_email_id, event_type, occurred_at, is_suspected_bot")
+    .eq("user_id", user.id)
+    .gte("occurred_at", since.toISOString())
+    .order("occurred_at", { ascending: false });
+
+  if (selectedCampaignId) {
+    eventsQuery = eventsQuery.eq("campaign_id", selectedCampaignId);
+  }
+
+  const { data: eventRows, error: eventsError } = await eventsQuery;
+
+  const eventStatsRpc = await supabase.rpc("email_event_stats", {
+    p_since: since.toISOString(),
+    p_campaign_id: selectedCampaignId,
+  });
+
+  const eventStats = eventStatsRpc.error ? null : parseEventStats(eventStatsRpc.data);
+
+  const eventsBySentEmail = new Map<string, EmailEventEngagementRow[]>();
+  const timelineEvents = (eventRows ?? []) as Array<
+    EmailEventTimelineRow & { sent_email_id?: string | null }
+  >;
+
+  timelineEvents.forEach((event) => {
+    if (!event.sent_email_id) return;
+    const existing = eventsBySentEmail.get(event.sent_email_id) ?? [];
+    existing.push({
+      event_type: event.event_type,
+      occurred_at: event.occurred_at,
+      is_suspected_bot: event.is_suspected_bot,
+    });
+    eventsBySentEmail.set(event.sent_email_id, existing);
+  });
+
+  const normalizedRows = ((rows ?? []) as Omit<AnalyticsRow, "opened_at_display" | "clicked_at_display">[]).map(
+    (row) => ({
+      ...row,
+      ...buildEngagementDisplayFromEvents(row, eventsBySentEmail.get(row.id)),
+    })
+  );
 
   return {
     campaigns: (campaigns ?? []) as AnalyticsCampaign[],
-    rows: (rows ?? []) as AnalyticsRow[],
-    error: null,
+    rows: normalizedRows,
+    error: eventsError?.message ?? null,
+    eventStats,
+    timelineEvents: timelineEvents.map((event) => ({
+      event_type: event.event_type,
+      occurred_at: event.occurred_at,
+      is_suspected_bot: event.is_suspected_bot,
+    })),
   };
 }
 
