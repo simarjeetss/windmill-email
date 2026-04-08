@@ -65,6 +65,20 @@ vi.mock("@/lib/supabase/template-attachments", () => ({
 
 vi.mock("@/lib/supabase/sent-emails", () => ({
   sendCampaignNow: vi.fn().mockResolvedValue({ sent: 1, failed: 0, error: null }),
+  enqueueCampaignSend: vi.fn().mockResolvedValue({
+    run: {
+      id: "run-1",
+      status: "queued",
+      total_count: 1,
+      sent_count: 0,
+      failed_count: 0,
+      last_error: null,
+      created_at: new Date().toISOString(),
+    },
+    error: null,
+  }),
+  getLatestCampaignSendRun: vi.fn().mockResolvedValue(null),
+  retryCampaignSendRun: vi.fn().mockResolvedValue({ run: null, error: null }),
 }));
 
 // ─── Static imports (after mocks) ─────────────────────────────────────────────
@@ -114,6 +128,7 @@ function renderComposer(opts: {
       initialTemplate={opts.template ?? null}
       previewContacts={opts.contacts ?? makeContacts(2)}
       initialProfile={opts.profile ?? null}
+      initialLatestRun={null}
     />
   );
 }

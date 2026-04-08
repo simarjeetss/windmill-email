@@ -5,12 +5,25 @@ import { createClient } from "@/lib/supabase/server";
 import { buildTrackedEmail } from "@/lib/email/templating";
 import { calculateCampaignStats, parseEventStats } from "@/lib/analytics/metrics";
 import { loadAttachmentsForSend } from "@/lib/supabase/template-attachments";
+import { inngest } from "@/lib/inngest/client";
+import {
+  cancelCampaignSendRun as cancelCampaignSendRunService,
+  createCampaignSendRun,
+  getLatestCampaignRun,
+  retryFailedCampaignSendRun,
+  type CampaignSendRun,
+} from "@/lib/campaign-send/service";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
 
 export type SendCampaignResult = {
   sent: number;
   failed: number;
+  error: string | null;
+};
+
+export type EnqueueCampaignSendResult = {
+  run: CampaignSendRun | null;
   error: string | null;
 };
 
@@ -67,6 +80,10 @@ export async function getCampaignStats(campaignId: string): Promise<CampaignStat
   };
 }
 
+function shouldUseInngestPipeline(): boolean {
+  return process.env.USE_INNGEST_SEND_PIPELINE === "true";
+}
+
 function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
@@ -85,12 +102,115 @@ async function getProfileForUser(): Promise<UserProfile | null> {
   return (data as UserProfile) ?? null;
 }
 
+export async function enqueueCampaignSend(
+  campaignId: string,
+  subject: string,
+  body: string,
+  attachmentIds?: string[]
+): Promise<EnqueueCampaignSendResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { run: null, error: "Not authenticated" };
+
+  const result = await createCampaignSendRun({
+    userId: user.id,
+    campaignId,
+    subject,
+    body,
+    attachmentIds: attachmentIds ?? [],
+  });
+
+  if (result.error || !result.run) {
+    return { run: result.run, error: result.error ?? "Could not enqueue campaign." };
+  }
+
+  try {
+    await inngest.send({
+      id: result.run.id,
+      name: "campaign/send.requested",
+      data: {
+        runId: result.run.id,
+        userId: result.run.user_id,
+        campaignId: result.run.campaign_id,
+      },
+    });
+  } catch (error) {
+    return {
+      run: result.run,
+      error: error instanceof Error ? error.message : "Failed to dispatch campaign send event.",
+    };
+  }
+
+  return { run: result.run, error: null };
+}
+
+export async function getLatestCampaignSendRun(campaignId: string): Promise<CampaignSendRun | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  return getLatestCampaignRun(user.id, campaignId);
+}
+
+export async function retryCampaignSendRun(runId: string): Promise<EnqueueCampaignSendResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { run: null, error: "Not authenticated" };
+
+  const retry = await retryFailedCampaignSendRun(runId, user.id);
+  if (retry.error || !retry.run) {
+    return { run: retry.run, error: retry.error ?? "Retry could not be started." };
+  }
+
+  try {
+    await inngest.send({
+      id: retry.run.id,
+      name: "campaign/send.requested",
+      data: {
+        runId: retry.run.id,
+        userId: retry.run.user_id,
+        campaignId: retry.run.campaign_id,
+      },
+    });
+  } catch (error) {
+    return {
+      run: retry.run,
+      error: error instanceof Error ? error.message : "Failed to dispatch retry event.",
+    };
+  }
+
+  return { run: retry.run, error: null };
+}
+
+export async function cancelCampaignSendRun(runId: string): Promise<EnqueueCampaignSendResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { run: null, error: "Not authenticated" };
+  return cancelCampaignSendRunService(runId, user.id);
+}
+
 export async function sendCampaignNow(
   campaignId: string,
   subject: string,
   body: string,
   attachmentIds?: string[]
 ): Promise<SendCampaignResult> {
+  if (shouldUseInngestPipeline()) {
+    const queued = await enqueueCampaignSend(campaignId, subject, body, attachmentIds);
+    return {
+      sent: 0,
+      failed: 0,
+      error: queued.error,
+    };
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { sent: 0, failed: 0, error: "Not authenticated" };

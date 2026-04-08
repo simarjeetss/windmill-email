@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { createTemplate } from "@/lib/supabase/email-templates";
-import { sendCampaignNow } from "@/lib/supabase/sent-emails";
+import { enqueueCampaignSend } from "@/lib/supabase/sent-emails";
 import {
   MAX_TEMPLATE_ATTACHMENTS,
   type TemplateAttachment,
@@ -17,8 +17,10 @@ import { polishEmailWithAI } from "@/lib/ai/polish-email";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
+import type { CampaignSendRun } from "@/lib/campaign-send/service";
 import SenderProfileSheet from "@/components/campaigns/sender-profile-sheet";
 import TemplateLibrary from "@/components/campaigns/template-library";
+import SendRunStatus from "@/components/campaigns/send-run-status";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ export default function EmailComposer({
   initialTemplate,
   previewContacts,
   initialProfile,
+  initialLatestRun,
 }: {
   campaignId: string;
   campaignName: string;
@@ -65,6 +68,7 @@ export default function EmailComposer({
   initialTemplate: EmailTemplate | null;
   previewContacts: Contact[];
   initialProfile: UserProfile | null;
+  initialLatestRun: CampaignSendRun | null;
 }) {
   const [subject,      setSubject]     = useState(initialTemplate?.subject ?? "");
   const [body,         setBody]        = useState(initialTemplate?.body    ?? "");
@@ -90,8 +94,8 @@ export default function EmailComposer({
   // Send-now modal state
   const [showSendModal, setShowSendModal] = useState(false);
   const [sendError, setSendError] = useState("");
-  const [sendStatus, setSendStatus] = useState<"idle" | "sent" | "error">("idle");
-  const [sendSummary, setSendSummary] = useState<{ sent: number; failed: number } | null>(null);
+  const [sendStatus, setSendStatus] = useState<"idle" | "queued" | "error">("idle");
+  const [latestRun, setLatestRun] = useState<CampaignSendRun | null>(initialLatestRun);
 
   /** Files linked to the current draft (saved template and/or staged uploads). */
   const [attachments, setAttachments] = useState<TemplateAttachment[]>([]);
@@ -103,6 +107,10 @@ export default function EmailComposer({
 
   // AI rate-limit upgrade modal
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  useEffect(() => {
+    setLatestRun(initialLatestRun);
+  }, [initialLatestRun]);
 
   // Focus name input when modal opens
   useEffect(() => {
@@ -181,7 +189,6 @@ export default function EmailComposer({
 
   function handleSendClick() {
     setSendStatus("idle");
-    setSendSummary(null);
     setSendError("");
 
     if (!subject.trim() || !body.trim()) {
@@ -206,7 +213,7 @@ export default function EmailComposer({
   function handleConfirmSend() {
     setSendError("");
     startSend(async () => {
-      const result = await sendCampaignNow(
+      const result = await enqueueCampaignSend(
         campaignId,
         subject,
         body,
@@ -217,18 +224,11 @@ export default function EmailComposer({
         setSendError(result.error);
         return;
       }
-      setSendStatus("sent");
-      setSendSummary({ sent: result.sent, failed: result.failed });
+      setSendStatus("queued");
+      if (result.run) {
+        setLatestRun(result.run);
+      }
       setShowSendModal(false);
-      // Clear the composer so the user starts fresh for the next send
-      setSubject("");
-      setBody("");
-      setSavedSubject("");
-      setSavedBody("");
-      setAttachments([]);
-      setLoadedTemplateId(null);
-      setSavedAttachSig("");
-      setSaveStatus("idle");
     });
   }
 
@@ -669,7 +669,7 @@ export default function EmailComposer({
                   opacity: isSending ? 0.7 : 1,
                 }}
               >
-                {isSending ? "Sending…" : "Send now"}
+                {isSending ? "Queueing..." : "Queue send"}
               </button>
             </div>
           </div>
@@ -812,7 +812,7 @@ export default function EmailComposer({
               opacity: isSending ? 0.6 : 1,
             }}
           >
-            {isSending ? "Sending…" : "Send now"}
+            {isSending ? "Queueing..." : "Queue send"}
           </button>
 
           {/* Save */}
@@ -862,15 +862,13 @@ export default function EmailComposer({
         </div>
       )}
 
-      {sendStatus === "sent" && (
+      {sendStatus === "queued" && (
         <div
           className="rk-fade-in px-4 py-2.5 rounded-lg text-xs flex items-center gap-2"
           style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--wm-accent)" }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          {sendSummary
-            ? `Sent ${sendSummary.sent} emails${sendSummary.failed ? `, ${sendSummary.failed} failed` : ""}`
-            : "Emails sent"}
+          Campaign send queued. You can keep editing while delivery runs in the background.
         </div>
       )}
       {sendStatus === "error" && sendError && (
@@ -881,6 +879,8 @@ export default function EmailComposer({
           {sendError}
         </div>
       )}
+
+      <SendRunStatus campaignId={campaignId} initialRun={latestRun} />
 
       {/* ── COMPOSE tab ─────────────────────────────────────────────────── */}
       {tab === "compose" && (
