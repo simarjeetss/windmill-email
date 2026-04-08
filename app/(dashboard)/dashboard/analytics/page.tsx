@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   buildTimeline,
   calculateCampaignStats,
-  parseEventStats,
+  type EventStatsBundle,
   summarizeContacts,
   type SentEmailRow,
 } from "@/lib/analytics/metrics";
@@ -55,6 +55,48 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+type EmailEventRow = {
+  sent_email_id: string | null;
+  campaign_id: string | null;
+  event_type: string;
+  is_suspected_bot: boolean;
+};
+
+function cohortEventStats(rows: { id: string }[], events: EmailEventRow[]): EventStatsBundle {
+  if (rows.length === 0 || events.length === 0) {
+    return {
+      delivered_unique: 0,
+      open_unique_raw: 0,
+      open_unique_trusted: 0,
+      click_unique: 0,
+    };
+  }
+
+  const ids = new Set(rows.map((row) => row.id));
+  const delivered = new Set<string>();
+  const openRaw = new Set<string>();
+  const openTrusted = new Set<string>();
+  const click = new Set<string>();
+
+  for (const event of events) {
+    const id = event.sent_email_id;
+    if (!id || !ids.has(id)) continue;
+    if (event.event_type === "delivered") delivered.add(id);
+    if (event.event_type === "open") {
+      openRaw.add(id);
+      if (!event.is_suspected_bot) openTrusted.add(id);
+    }
+    if (event.event_type === "click") click.add(id);
+  }
+
+  return {
+    delivered_unique: delivered.size,
+    open_unique_raw: openRaw.size,
+    open_unique_trusted: openTrusted.size,
+    click_unique: click.size,
+  };
+}
+
 export default async function AnalyticsPage({
   searchParams,
 }: {
@@ -74,14 +116,18 @@ export default async function AnalyticsPage({
 
   const rowsForEngagement = filteredRows as SentEmailRow[];
   const supabase = await createClient();
-  const since = new Date();
-  since.setDate(since.getDate() - Math.max(1, Math.min(rangeDays, 365)));
-  const { data: selectedRpcData } = await supabase.rpc("email_event_stats", {
-    p_since: since.toISOString(),
-    p_campaign_id: selectedCampaignId || null,
-  });
+  const allRowIds = rows.map((row) => row.id);
+  const { data: eventRows } =
+    allRowIds.length > 0
+      ? await supabase
+          .from("email_events")
+          .select("sent_email_id, campaign_id, event_type, is_suspected_bot")
+          .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+          .in("sent_email_id", allRowIds)
+      : { data: [] as EmailEventRow[] };
+  const allEvents = (eventRows ?? []) as EmailEventRow[];
 
-  const stats = calculateCampaignStats(rowsForEngagement, parseEventStats(selectedRpcData));
+  const stats = calculateCampaignStats(rowsForEngagement, cohortEventStats(filteredRows, allEvents));
   const timeline = buildTimeline(filteredRows as SentEmailRow[], rangeDays);
   const contacts = summarizeContacts(rowsForEngagement);
 
@@ -107,11 +153,7 @@ export default async function AnalyticsPage({
   const campaignSummaries = await Promise.all(
     campaigns.map(async (campaign) => {
       const campaignRows = rows.filter((row) => row.campaign_id === campaign.id) as SentEmailRow[];
-      const { data: rpcData } = await supabase.rpc("email_event_stats", {
-        p_since: since.toISOString(),
-        p_campaign_id: campaign.id,
-      });
-      const summary = calculateCampaignStats(campaignRows as SentEmailRow[], parseEventStats(rpcData));
+      const summary = calculateCampaignStats(campaignRows, cohortEventStats(campaignRows, allEvents));
       return { ...summary, id: campaign.id, name: campaign.name };
     })
   );

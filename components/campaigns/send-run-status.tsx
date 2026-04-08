@@ -45,13 +45,17 @@ export default function SendRunStatus({ campaignId, initialRun }: Props) {
   useEffect(() => {
     if (!run || TERMINAL_STATUSES.has(run.status)) return;
     let stopped = false;
-    const timer = setInterval(async () => {
+
+    const refresh = async () => {
       if (stopped) return;
       const latest = await getLatestCampaignSendRun(campaignId);
-      if (latest) {
-        setRun(latest as CampaignSendRun);
-      }
-    }, 3000);
+      if (latest) setRun(latest as CampaignSendRun);
+    };
+
+    void refresh();
+    const timer = setInterval(() => {
+      void refresh();
+    }, 1200);
 
     return () => {
       stopped = true;
@@ -98,21 +102,38 @@ export default function SendRunStatus({ campaignId, initialRun }: Props) {
 
   return (
     <div
-      className="rounded-xl p-4 space-y-3"
+      className="rounded-xl p-4 space-y-4"
       style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="text-sm" style={{ color: "var(--wm-text)" }}>
-          Latest send run:{" "}
-          <strong style={{ color: "var(--wm-accent)" }}>{statusLabel(run.status)}</strong>
+        <div>
+          <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--wm-text-sub)" }}>
+            Background delivery
+          </div>
+          <div className="text-sm font-medium" style={{ color: "var(--wm-text)" }}>
+            {statusLabel(run.status)}
+            {(run.status === "queued" || run.status === "running") && (
+              <span
+                className="inline-block ml-2 align-middle"
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "9999px",
+                  background: "var(--wm-accent)",
+                  boxShadow: "0 0 0 0 rgba(43,122,95,0.55)",
+                  animation: "rkPulse 1.4s ease-in-out infinite",
+                }}
+              />
+            )}
+          </div>
         </div>
         <div className="text-xs tabular-nums" style={{ color: "var(--wm-text-sub)" }}>
-          {run.sent_count} sent / {run.failed_count} failed / {run.total_count} total
+          {processed} / {run.total_count}
         </div>
       </div>
 
       <div
-        className="h-2 w-full rounded-full overflow-hidden"
+        className="h-2.5 w-full rounded-full overflow-hidden"
         style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}
       >
         <div
@@ -123,6 +144,23 @@ export default function SendRunStatus({ campaignId, initialRun }: Props) {
             transition: "width 200ms ease",
           }}
         />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-lg px-3 py-2" style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}>
+          <div className="text-[10px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>Sent</div>
+          <div className="text-sm font-semibold tabular-nums" style={{ color: "var(--wm-text)" }}>{run.sent_count}</div>
+        </div>
+        <div className="rounded-lg px-3 py-2" style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}>
+          <div className="text-[10px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>Failed</div>
+          <div className="text-sm font-semibold tabular-nums" style={{ color: "#f87171" }}>{run.failed_count}</div>
+        </div>
+        <div className="rounded-lg px-3 py-2" style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}>
+          <div className="text-[10px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>Remaining</div>
+          <div className="text-sm font-semibold tabular-nums" style={{ color: "var(--wm-text)" }}>
+            {Math.max(0, run.total_count - processed)}
+          </div>
+        </div>
       </div>
 
       {run.last_error && run.status === "failed" && (

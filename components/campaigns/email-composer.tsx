@@ -880,14 +880,13 @@ export default function EmailComposer({
         </div>
       )}
 
-      <SendRunStatus campaignId={campaignId} initialRun={latestRun} />
-
       {/* ── COMPOSE tab ─────────────────────────────────────────────────── */}
       {tab === "compose" && (
-        <div
-          className="rounded-xl overflow-hidden"
-          style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
-        >
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
+          >
           {/* Subject */}
           <div style={{ borderBottom: "1px solid var(--wm-border)" }}>
             <div className="flex items-center gap-3 px-4 py-3">
@@ -1220,6 +1219,13 @@ export default function EmailComposer({
                 />
               )}
             </div>
+          </div>
+          </div>
+          <div
+            className="rounded-xl p-3 lg:sticky lg:top-4"
+            style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
+          >
+            <SendRunStatus campaignId={campaignId} initialRun={latestRun} />
           </div>
         </div>
       )}

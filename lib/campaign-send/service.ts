@@ -309,6 +309,8 @@ export async function processCampaignSendRun(runId: string): Promise<void> {
   const resend = new Resend(process.env.RESEND_API_KEY!);
   const fromEmail = process.env.RESEND_FROM_EMAIL!;
   const baseUrl = getBaseUrl();
+  let sentCount = run.sent_count;
+  let failedCount = run.failed_count;
 
   for (const row of pending) {
     const { data: liveRun } = await supabase
@@ -326,6 +328,15 @@ export async function processCampaignSendRun(runId: string): Promise<void> {
         .from("sent_emails")
         .update({ status: "failed", error: "Contact not found." })
         .eq("id", row.id);
+      failedCount += 1;
+      await supabase
+        .from("campaign_send_runs")
+        .update({
+          status: "running",
+          sent_count: sentCount,
+          failed_count: failedCount,
+        })
+        .eq("id", run.id);
       continue;
     }
 
@@ -362,6 +373,15 @@ export async function processCampaignSendRun(runId: string): Promise<void> {
         .from("sent_emails")
         .update({ status: "failed", error: error.message })
         .eq("id", row.id);
+      failedCount += 1;
+      await supabase
+        .from("campaign_send_runs")
+        .update({
+          status: "running",
+          sent_count: sentCount,
+          failed_count: failedCount,
+        })
+        .eq("id", run.id);
       continue;
     }
 
@@ -385,6 +405,15 @@ export async function processCampaignSendRun(runId: string): Promise<void> {
       providerMessageId: data?.id ?? null,
       confidence: 1,
     });
+    sentCount += 1;
+    await supabase
+      .from("campaign_send_runs")
+      .update({
+        status: "running",
+        sent_count: sentCount,
+        failed_count: failedCount,
+      })
+      .eq("id", run.id);
   }
 
   const { sent, failed, pending: stillPending } = await recalcRunCounts(run.id);
