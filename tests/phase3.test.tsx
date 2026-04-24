@@ -14,6 +14,7 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
 import type { Contact } from "@/lib/supabase/campaigns";
+import type { EmailAgentStreamEvent } from "@/lib/ai/email-agent.types";
 
 // ─── Module-level mocks ────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ const mockGenerateEmailWithAI = vi.fn();
 const mockCreateTemplate      = vi.fn();
 const mockGetAllTemplates     = vi.fn();
 const mockPolishEmailWithAI   = vi.fn();
+const mockFetch = vi.fn();
 
 vi.mock("@/lib/ai/generate-email", () => ({
   generateEmailWithAI: (...args: unknown[]) => mockGenerateEmailWithAI(...args),
@@ -80,6 +82,25 @@ vi.mock("@/lib/supabase/sent-emails", () => ({
   getLatestCampaignSendRun: vi.fn().mockResolvedValue(null),
   retryCampaignSendRun: vi.fn().mockResolvedValue({ run: null, error: null }),
 }));
+
+function makeSseResponse(events: EmailAgentStreamEvent[]) {
+  const stream = new ReadableStream({
+    start(controller) {
+      const encoder = new TextEncoder();
+      for (const event of events) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream",
+    },
+  });
+}
 
 // ─── Static imports (after mocks) ─────────────────────────────────────────────
 
@@ -119,6 +140,7 @@ function renderComposer(opts: {
   template?: EmailTemplate | null;
   contacts?: Contact[];
   profile?: import("@/lib/supabase/profile").UserProfile | null;
+  campaignFiles?: import("@/lib/ai/email-agent.types").EmailAgentCampaignFileContext[];
 } = {}) {
   render(
     <EmailComposer
@@ -128,6 +150,7 @@ function renderComposer(opts: {
       initialTemplate={opts.template ?? null}
       previewContacts={opts.contacts ?? makeContacts(2)}
       initialProfile={opts.profile ?? null}
+      campaignFiles={opts.campaignFiles ?? []}
       initialLatestRun={null}
     />
   );
@@ -245,6 +268,13 @@ describe("EmailComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetTemplateAttachments.mockResolvedValue({ data: [], error: null });
+    mockFetch.mockResolvedValue(
+      makeSseResponse([
+        { type: "status", message: "Preparing AI draft." },
+        { type: "final", result: { subject: "AI Subject", body: "AI body text" } },
+      ])
+    );
+    vi.stubGlobal("fetch", mockFetch);
   });
 
   // ── Rendering ─────────────────────────────────────────────────────────────
@@ -333,17 +363,18 @@ describe("EmailComposer", () => {
 
   // ── AI Generation ─────────────────────────────────────────────────────────
 
-  it("calls generateEmailWithAI and populates fields on success", async () => {
-    mockGenerateEmailWithAI.mockResolvedValueOnce({ subject: "AI Subject", body: "AI body text" });
+  it("calls the streaming AI route and populates fields on success", async () => {
     renderComposer();
     await userEvent.click(screen.getByRole("button", { name: /generate with ai/i }));
-    await waitFor(() => expect(mockGenerateEmailWithAI).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.getByDisplayValue("AI Subject")).toBeInTheDocument());
     expect(screen.getByDisplayValue("AI body text")).toBeInTheDocument();
   });
 
   it("shows error when AI generation returns an error", async () => {
-    mockGenerateEmailWithAI.mockResolvedValueOnce({ subject: "", body: "", error: "API key invalid" });
+    mockFetch.mockResolvedValueOnce(
+      makeSseResponse([{ type: "error", error: "API key invalid" }])
+    );
     renderComposer();
     await userEvent.click(screen.getByRole("button", { name: /generate with ai/i }));
     await waitFor(() => expect(screen.getByText(/API key invalid/i)).toBeInTheDocument());
@@ -455,7 +486,10 @@ describe("EmailComposer", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("AI Writer Panel", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("fetch", mockFetch);
+  });
 
   it("opens the AI writer panel when / is typed in an empty body", async () => {
     renderComposer();
@@ -494,8 +528,13 @@ describe("AI Writer Panel", () => {
     expect(screen.getByRole("button", { name: /ai writer generate/i })).toBeDisabled();
   });
 
-  it("calls polishEmailWithAI in prompt mode and populates body", async () => {
-    mockPolishEmailWithAI.mockResolvedValueOnce({ body: "Generated body text", subject: "Gen Subject" });
+  it("calls the streaming AI route in prompt mode and populates body", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeSseResponse([
+        { type: "status", message: "Preparing AI draft." },
+        { type: "final", result: { body: "Generated body text", subject: "Gen Subject" } },
+      ])
+    );
     renderComposer();
     const bodyEl = screen.getByRole("textbox", { name: /email body/i });
     await userEvent.type(bodyEl, "/");
@@ -505,17 +544,19 @@ describe("AI Writer Panel", () => {
       "cold outreach for SaaS product"
     );
     await userEvent.click(screen.getByRole("button", { name: /ai writer generate/i }));
-    await waitFor(() => expect(mockPolishEmailWithAI).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "prompt", userInput: "cold outreach for SaaS product" })
-    ));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
     await waitFor(() =>
       expect(screen.queryByText(/write with ai/i)).not.toBeInTheDocument()
     );
     expect(screen.getByDisplayValue("Generated body text")).toBeInTheDocument();
   });
 
-  it("calls polishEmailWithAI in polish mode", async () => {
-    mockPolishEmailWithAI.mockResolvedValueOnce({ body: "Polished body text" });
+  it("calls the streaming AI route in polish mode", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeSseResponse([
+        { type: "final", result: { body: "Polished body text" } },
+      ])
+    );
     renderComposer();
     const bodyEl = screen.getByRole("textbox", { name: /email body/i });
     await userEvent.type(bodyEl, "/");
@@ -526,13 +567,13 @@ describe("AI Writer Panel", () => {
       "my rough draft text here"
     );
     await userEvent.click(screen.getByRole("button", { name: /ai writer polish/i }));
-    await waitFor(() => expect(mockPolishEmailWithAI).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "polish" })
-    ));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
   });
 
-  it("shows error when polishEmailWithAI returns an error", async () => {
-    mockPolishEmailWithAI.mockResolvedValueOnce({ body: "", error: "Quota exceeded" });
+  it("shows error when the streaming AI route returns an error", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeSseResponse([{ type: "error", error: "Quota exceeded" }])
+    );
     renderComposer();
     const bodyEl = screen.getByRole("textbox", { name: /email body/i });
     await userEvent.type(bodyEl, "/");

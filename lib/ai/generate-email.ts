@@ -1,7 +1,6 @@
 "use server";
 
-import { vertexGenerateContent } from "./vertex-client";
-import { FREE_AI_LIMIT } from "@/lib/supabase/ai-usage-config";
+import { executeEmailAgent } from "./email-agent.service";
 
 
 export interface GenerateEmailInput {
@@ -22,43 +21,31 @@ export interface GenerateEmailResult {
 export async function generateEmailWithAI(
   input: GenerateEmailInput
 ): Promise<GenerateEmailResult> {
-  const contact = [input.contactFirstName, input.contactLastName].filter(Boolean).join(" ") || "the recipient";
-  const company = input.contactCompany ?? "their company";
-  const sender  = input.senderName ?? "the sender";
-
-  const prompt = `You are an expert cold email copywriter. Write a professional, concise, and compelling cold outreach email.
-
-Campaign: "${input.campaignName}"${input.campaignDescription ? `\nGoal: ${input.campaignDescription}` : ""}
-Recipient: ${contact} at ${company}
-Sender: ${sender}
-
-Rules:
-- Subject line: punchy, under 50 characters, no spam words
-- Body: 3–5 short paragraphs, friendly but professional tone
-- Use {{first_name}} and {{company}} as exact placeholder variables in your output (keep the double curly braces literally — they get replaced per-contact at send time)
-- Write the sender's name as "${sender}" naturally — do NOT output {{sender_name}} as a placeholder
-- End with a clear, single call-to-action
-- No hollow filler phrases like "I hope this email finds you well"
-- Do NOT include a sign-off line like "Best regards" — the system adds that automatically
-
-Respond with ONLY valid JSON in this exact shape:
-{
-  "subject": "...",
-  "body": "..."
-}`;
-
   try {
-    const text = await vertexGenerateContent(prompt);
+    const result = await executeEmailAgent({
+      mode: "generate",
+      campaignName: input.campaignName,
+      campaignDescription: input.campaignDescription,
+      contact: {
+        firstName: input.contactFirstName,
+        lastName: input.contactLastName,
+        company: input.contactCompany,
+      },
+      sender: {
+        name: input.senderName,
+      },
+    });
 
-    // Strip markdown code fences if present
-    const clean = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
-    const parsed = JSON.parse(clean) as { subject: string; body: string };
+    if (!result.subject) {
+      throw new Error("Incomplete response from AI");
+    }
 
-    if (!parsed.subject || !parsed.body) throw new Error("Incomplete response from AI");
-
-    return { subject: parsed.subject, body: parsed.body };
+    return { subject: result.subject, body: result.body };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
+    if (msg.startsWith("__RATE_LIMIT__:")) {
+      return { subject: "", body: "", error: msg };
+    }
     return { subject: "", body: "", error: `AI generation failed: ${msg}` };
   }
 }

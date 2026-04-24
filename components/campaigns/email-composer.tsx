@@ -1,8 +1,17 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, useCallback } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { createTemplate } from "@/lib/supabase/email-templates";
-import { enqueueCampaignSend } from "@/lib/supabase/sent-emails";
+import {
+  enqueueCampaignSend,
+  getFollowUpAudienceCount,
+  getFollowUpAudiencePreview,
+} from "@/lib/supabase/sent-emails";
+import {
+  followUpSegmentLabel,
+  type LatestContactStatus,
+  type FollowUpSegment,
+} from "@/lib/campaign-send/follow-up";
 import {
   MAX_TEMPLATE_ATTACHMENTS,
   type TemplateAttachment,
@@ -12,23 +21,124 @@ import {
   deleteTemplateAttachment,
   getTemplateAttachments,
 } from "@/lib/supabase/template-attachments";
-import { generateEmailWithAI } from "@/lib/ai/generate-email";
-import { polishEmailWithAI } from "@/lib/ai/polish-email";
+import type {
+  EmailAgentCampaignFileContext,
+  EmailAgentFinalResult,
+  EmailAgentRequest,
+  EmailAgentStreamEvent,
+} from "@/lib/ai/email-agent.types";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
-import type { CampaignSendRun } from "@/lib/campaign-send/service";
+import type {
+  CampaignSendRun,
+  FollowUpAudiencePreviewContact,
+} from "@/lib/campaign-send/service";
 import SenderProfileSheet from "@/components/campaigns/sender-profile-sheet";
 import TemplateLibrary from "@/components/campaigns/template-library";
 import SendRunStatus from "@/components/campaigns/send-run-status";
 
+type FollowUpIntent = {
+  segment: FollowUpSegment;
+  nonce: number;
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 /** Variables that relate to the contact (recipient) */
 const CONTACT_VARIABLES = ["{{first_name}}", "{{last_name}}", "{{company}}"];
 
 /** Sender variables — resolved from profile, shown with resolved value */
 const SENDER_VARIABLES = ["{{sender_name}}", "{{sender_company}}"];
+
+const FOLLOW_UP_SEGMENTS: Array<{
+  value: FollowUpSegment;
+  description: string;
+}> = [
+  { value: "failed", description: "Retry people whose latest send failed." },
+  { value: "opened", description: "Target people who opened but did not click." },
+  { value: "clicked", description: "Target the most engaged recipients." },
+  { value: "sent_all", description: "Include all successful sends, even if they opened or clicked." },
+  { value: "sent_unengaged", description: "Only include successful sends with no open or click yet." },
+];
+
+const FOLLOW_UP_STATUS_STYLES: Record<LatestContactStatus, { bg: string; color: string }> = {
+  clicked: { bg: "rgba(139,92,246,0.12)", color: "#8b5cf6" },
+  opened: { bg: "rgba(37,99,235,0.12)", color: "#2563eb" },
+  sent: { bg: "rgba(43,122,95,0.12)", color: "var(--wm-accent)" },
+  failed: { bg: "rgba(220,38,38,0.12)", color: "#dc2626" },
+  pending: { bg: "rgba(100,116,139,0.12)", color: "#64748b" },
+};
+
+function toolLabel(tool: string): string {
+  if (tool === "google_search_research") return "Google Search";
+  if (tool === "campaign_url_context") return "URL Context";
+  return tool;
+}
+
+async function streamEmailAgentRequest(
+  payload: EmailAgentRequest,
+  onEvent: (event: EmailAgentStreamEvent) => void
+): Promise<EmailAgentFinalResult> {
+  const response = await fetch("/api/ai/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(errorBody?.error ?? `Request failed with status ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error("AI response stream was unavailable.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalResult: EmailAgentFinalResult | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const line = chunk
+        .split("\n")
+        .find((entry) => entry.startsWith("data: "));
+
+      if (!line) {
+        continue;
+      }
+
+      const event = JSON.parse(line.slice(6)) as EmailAgentStreamEvent;
+      onEvent(event);
+
+      if (event.type === "error") {
+        throw new Error(event.error);
+      }
+
+      if (event.type === "final") {
+        finalResult = event.result;
+      }
+    }
+  }
+
+  if (!finalResult) {
+    throw new Error("AI did not return a final result.");
+  }
+
+  return finalResult;
+}
 
 function applyPreview(
   text: string,
@@ -60,7 +170,9 @@ export default function EmailComposer({
   initialTemplate,
   previewContacts,
   initialProfile,
+  campaignFiles,
   initialLatestRun,
+  followUpIntent,
 }: {
   campaignId: string;
   campaignName: string;
@@ -68,7 +180,9 @@ export default function EmailComposer({
   initialTemplate: EmailTemplate | null;
   previewContacts: Contact[];
   initialProfile: UserProfile | null;
+  campaignFiles: EmailAgentCampaignFileContext[];
   initialLatestRun: CampaignSendRun | null;
+  followUpIntent: FollowUpIntent | null;
 }) {
   const [subject,      setSubject]     = useState(initialTemplate?.subject ?? "");
   const [body,         setBody]        = useState(initialTemplate?.body    ?? "");
@@ -79,11 +193,14 @@ export default function EmailComposer({
   const [saveStatus,   setSaveStatus]  = useState<"idle" | "saved" | "error">("idle");
   const [saveError,    setSaveError]   = useState("");
   const [aiError,      setAiError]     = useState("");
+  const [aiStatus,     setAiStatus]    = useState("");
+  const [aiActivity,   setAiActivity]  = useState<string[]>([]);
   const [isSaving,     startSave]      = useTransition();
   const [isGenerating, startGenerate]  = useTransition();
   const [isSending,    startSend]      = useTransition();
   const [profile,      setProfile]     = useState<UserProfile | null>(initialProfile);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const composerRootRef = useRef<HTMLDivElement>(null);
 
   // Save-as modal state
   const [showSaveModal,   setShowSaveModal]   = useState(false);
@@ -96,6 +213,14 @@ export default function EmailComposer({
   const [sendError, setSendError] = useState("");
   const [sendStatus, setSendStatus] = useState<"idle" | "queued" | "error">("idle");
   const [latestRun, setLatestRun] = useState<CampaignSendRun | null>(initialLatestRun);
+  const [sendMode, setSendMode] = useState<"initial" | "followup">("initial");
+  const [followUpSegment, setFollowUpSegment] = useState<FollowUpSegment>("failed");
+  const [followUpCount, setFollowUpCount] = useState<number | null>(null);
+  const [followUpAudienceError, setFollowUpAudienceError] = useState("");
+  const [isLoadingFollowUpCount, setIsLoadingFollowUpCount] = useState(false);
+  const [showFollowUpReview, setShowFollowUpReview] = useState(false);
+  const [followUpPreview, setFollowUpPreview] = useState<FollowUpAudiencePreviewContact[]>([]);
+  const [isLoadingFollowUpPreview, setIsLoadingFollowUpPreview] = useState(false);
 
   /** Files linked to the current draft (saved template and/or staged uploads). */
   const [attachments, setAttachments] = useState<TemplateAttachment[]>([]);
@@ -111,6 +236,89 @@ export default function EmailComposer({
   useEffect(() => {
     setLatestRun(initialLatestRun);
   }, [initialLatestRun]);
+
+  useEffect(() => {
+    if (sendMode !== "followup") {
+      setFollowUpCount(null);
+      setFollowUpAudienceError("");
+      setIsLoadingFollowUpCount(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadFollowUpAudience() {
+      setIsLoadingFollowUpCount(true);
+      setFollowUpAudienceError("");
+
+      const result = await getFollowUpAudienceCount(campaignId, followUpSegment);
+      if (cancelled) return;
+
+      if (result.error) {
+        setFollowUpAudienceError(result.error);
+        setFollowUpCount(0);
+      } else {
+        setFollowUpAudienceError("");
+        setFollowUpCount(result.count);
+      }
+
+      setIsLoadingFollowUpCount(false);
+    }
+
+    void loadFollowUpAudience();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId, followUpSegment, sendMode]);
+
+  useEffect(() => {
+    if (!followUpIntent) return;
+
+    setSendMode("followup");
+    setFollowUpSegment(followUpIntent.segment);
+    setTab("compose");
+    setShowFollowUpReview(true);
+    setShowSendModal(false);
+    setSendStatus("idle");
+    setSendError("");
+
+    requestAnimationFrame(() => {
+      composerRootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      bodyRef.current?.focus();
+    });
+  }, [followUpIntent]);
+
+  useEffect(() => {
+    if (sendMode !== "followup" || !showFollowUpReview) {
+      setFollowUpPreview([]);
+      setIsLoadingFollowUpPreview(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadFollowUpPreview() {
+      setIsLoadingFollowUpPreview(true);
+      const result = await getFollowUpAudiencePreview(campaignId, followUpSegment);
+      if (cancelled) return;
+
+      if (result.error) {
+        setFollowUpAudienceError(result.error);
+        setFollowUpPreview([]);
+      } else {
+        setFollowUpPreview(result.contacts);
+      }
+
+      setIsLoadingFollowUpPreview(false);
+    }
+
+    void loadFollowUpPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId, followUpSegment, sendMode, showFollowUpReview]);
 
   // Focus name input when modal opens
   useEffect(() => {
@@ -190,6 +398,7 @@ export default function EmailComposer({
   function handleSendClick() {
     setSendStatus("idle");
     setSendError("");
+    setFollowUpAudienceError("");
 
     if (!subject.trim() || !body.trim()) {
       setSendStatus("error");
@@ -207,17 +416,44 @@ export default function EmailComposer({
       return;
     }
 
+    if (sendMode === "followup") {
+      setShowFollowUpReview(true);
+      requestAnimationFrame(() => {
+        composerRootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      return;
+    }
+
     setShowSendModal(true);
   }
 
   function handleConfirmSend() {
     setSendError("");
+
+    if (sendMode === "followup") {
+      if (followUpAudienceError) {
+        setSendError(followUpAudienceError);
+        return;
+      }
+      if (isLoadingFollowUpCount) {
+        setSendError("Checking the follow-up audience. Try again in a moment.");
+        return;
+      }
+      if ((followUpCount ?? 0) === 0) {
+        setSendError("No contacts match the selected follow-up segment.");
+        return;
+      }
+    }
+
     startSend(async () => {
       const result = await enqueueCampaignSend(
         campaignId,
         subject,
         body,
-        attachments.map((a) => a.id)
+        attachments.map((a) => a.id),
+        sendMode === "followup"
+          ? { mode: "followup", followUpSegment }
+          : { mode: "initial" }
       );
       if (result.error) {
         setSendStatus("error");
@@ -229,6 +465,7 @@ export default function EmailComposer({
         setLatestRun(result.run);
       }
       setShowSendModal(false);
+      setShowFollowUpReview(false);
     });
   }
 
@@ -307,32 +544,50 @@ export default function EmailComposer({
   }
 
   function handleGenerate() {
-    setAiError("");
+    resetAiFeedback();
     startGenerate(async () => {
       const sample = previewContacts[0] ?? null;
-      const result = await generateEmailWithAI({
-        campaignName,
-        campaignDescription,
-        contactFirstName: sample?.first_name,
-        contactLastName:  sample?.last_name,
-        contactCompany:   sample?.company,
-        senderName:       profile?.full_name,
-      });
-      if (result.error) {
-        if (result.error.startsWith("__RATE_LIMIT__:")) {
+      try {
+        const result = await streamEmailAgentRequest(
+          {
+            mode: "generate",
+            campaignId,
+            campaignName,
+            campaignDescription,
+            contact: {
+              firstName: sample?.first_name,
+              lastName: sample?.last_name,
+              company: sample?.company,
+              email: sample?.email,
+            },
+            sender: {
+              name: profile?.full_name,
+              company: profile?.company,
+            },
+            campaignFiles,
+          },
+          handleAiStreamEvent
+        );
+
+        if (!result.subject) {
+          throw new Error("Incomplete response from AI.");
+        }
+
+        setSubject(result.subject);
+        setBody(result.body);
+        setAttachments([]);
+        setLoadedTemplateId(null);
+        setSavedAttachSig("");
+        setSaveStatus("idle");
+        setSendStatus("idle");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message.startsWith("__RATE_LIMIT__:")) {
           setShowUpgradeModal(true);
         } else {
-          setAiError(result.error);
+          setAiError(message);
         }
-        return;
       }
-      setSubject(result.subject);
-      setBody(result.body);
-      setAttachments([]);
-      setLoadedTemplateId(null);
-      setSavedAttachSig("");
-      setSaveStatus("idle");
-      setSendStatus("idle");
     });
   }
 
@@ -344,6 +599,46 @@ export default function EmailComposer({
   const [isPolishing,    startPolish]       = useTransition();
   const writerRef = useRef<HTMLTextAreaElement>(null);
 
+  function resetAiFeedback() {
+    setAiError("");
+    setAiStatus("");
+    setAiActivity([]);
+  }
+
+  function appendAiActivity(line: string) {
+    setAiActivity((current) => [...current, line].slice(-4));
+  }
+
+  function handleAiStreamEvent(event: EmailAgentStreamEvent) {
+    if (event.type === "status") {
+      setAiStatus(event.message);
+      return;
+    }
+
+    if (event.type === "tool-start") {
+      appendAiActivity(`${toolLabel(event.tool)} started`);
+      return;
+    }
+
+    if (event.type === "tool-end") {
+      appendAiActivity(`${toolLabel(event.tool)} finished`);
+      return;
+    }
+
+    if (event.type === "error") {
+      if (showAiWriter) {
+        setAiWriterError(event.error);
+      } else {
+        setAiError(event.error);
+      }
+      return;
+    }
+
+    if (event.type === "final") {
+      setAiStatus("AI draft ready.");
+    }
+  }
+
   // Focus the writer textarea when panel opens
   useEffect(() => {
     if (showAiWriter) {
@@ -351,18 +646,19 @@ export default function EmailComposer({
     }
   }, [showAiWriter]);
 
-  const openAiWriter = useCallback(() => {
+  const openAiWriter = () => {
+    resetAiFeedback();
     setAiWriterError("");
     setAiWriterPrompt("");
     setShowAiWriter(true);
-  }, []);
+  };
 
-  const closeAiWriter = useCallback(() => {
+  const closeAiWriter = () => {
     setShowAiWriter(false);
     setAiWriterError("");
     // Restore focus to the body textarea
     setTimeout(() => bodyRef.current?.focus(), 60);
-  }, []);
+  };
 
   function handleBodyKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     // Open AI writer when "/" is typed and the body is empty (or the field is empty)
@@ -384,31 +680,52 @@ export default function EmailComposer({
 
   function handlePolish() {
     setAiWriterError("");
+    resetAiFeedback();
     startPolish(async () => {
-      const result = await polishEmailWithAI({
-        userInput:    aiWriterPrompt,
-        mode:         aiWriterMode,
-        campaignName,
-        senderName:   profile?.full_name,
-      });
-      if (result.error) {
-        if (result.error.startsWith("__RATE_LIMIT__:")) {
+      try {
+        const result = await streamEmailAgentRequest(
+          {
+            mode: "writer",
+            writerMode: aiWriterMode,
+            campaignId,
+            campaignName,
+            campaignDescription,
+            userInput: aiWriterPrompt,
+            sender: {
+              name: profile?.full_name,
+              company: profile?.company,
+            },
+            contact: previewContact
+              ? {
+                  firstName: previewContact.first_name,
+                  lastName: previewContact.last_name,
+                  company: previewContact.company,
+                  email: previewContact.email,
+                }
+              : undefined,
+            campaignFiles,
+          },
+          handleAiStreamEvent
+        );
+
+        setBody(result.body);
+        if (result.subject) setSubject(result.subject);
+        setSaveStatus("idle");
+        closeAiWriter();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message.startsWith("__RATE_LIMIT__:")) {
           closeAiWriter();
           setShowUpgradeModal(true);
         } else {
-          setAiWriterError(result.error);
+          setAiWriterError(message);
         }
-        return;
       }
-      setBody(result.body);
-      if (result.subject) setSubject(result.subject);
-      setSaveStatus("idle");
-      closeAiWriter();
     });
   }
 
   return (
-    <div className="space-y-4">
+    <div ref={composerRootRef} className="space-y-4">
 
       {/* ── AI Upgrade modal ─────────────────────────────────────────────── */}
       {showUpgradeModal && (
@@ -613,12 +930,108 @@ export default function EmailComposer({
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
               <span className="text-sm font-semibold" style={{ color: "var(--wm-text)", fontFamily: "var(--font-display, serif)" }}>
-                Send campaign now
+                Queue campaign send
               </span>
             </div>
 
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "initial" as const, label: "Initial send" },
+                  { value: "followup" as const, label: "Follow-up" },
+                ].map((option) => {
+                  const active = sendMode === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setSendMode(option.value);
+                        setSendError("");
+                      }}
+                      className="rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+                      style={{
+                        background: active ? "rgba(43,122,95,0.14)" : "var(--wm-surface-2)",
+                        border: active
+                          ? "1px solid rgba(43,122,95,0.35)"
+                          : "1px solid var(--wm-border)",
+                        color: active ? "var(--wm-accent)" : "var(--wm-text-muted)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {sendMode === "followup" && (
+                <div
+                  className="space-y-2 rounded-xl px-3 py-3"
+                  style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}
+                >
+                  <div className="space-y-1">
+                    <label className="text-[11px] uppercase tracking-widest" style={{ color: "var(--wm-text-sub)" }}>
+                      Follow-up audience
+                    </label>
+                    <select
+                      value={followUpSegment}
+                      onChange={(e) => {
+                        setFollowUpSegment(e.target.value as FollowUpSegment);
+                        setSendError("");
+                      }}
+                      className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                      style={{
+                        background: "var(--wm-surface)",
+                        border: "1px solid var(--wm-border)",
+                        color: "var(--wm-text)",
+                      }}
+                    >
+                      {FOLLOW_UP_SEGMENTS.map((segment) => (
+                        <option key={segment.value} value={segment.value}>
+                          {followUpSegmentLabel(segment.value)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <p className="text-[11px] leading-relaxed" style={{ color: "var(--wm-text-sub)" }}>
+                    {FOLLOW_UP_SEGMENTS.find((segment) => segment.value === followUpSegment)?.description}
+                  </p>
+
+                  <div className="flex items-center justify-between gap-2 text-[11px]" style={{ color: "var(--wm-text-muted)" }}>
+                    <span>
+                      {isLoadingFollowUpCount
+                        ? "Checking matching contacts..."
+                        : `${followUpCount ?? 0} matching contact${followUpCount === 1 ? "" : "s"}`}
+                    </span>
+                    <span style={{ color: "var(--wm-text-sub)" }}>
+                      based on each contact&apos;s latest campaign send
+                    </span>
+                  </div>
+
+                  {followUpAudienceError && (
+                    <div
+                      className="px-3 py-2 rounded-lg text-xs"
+                      style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
+                    >
+                      {followUpAudienceError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
-              This will send to <strong style={{ color: "var(--wm-text)" }}>{previewContacts.length}</strong> contact{previewContacts.length === 1 ? "" : "s"}.
+              {sendMode === "followup" ? (
+                <>
+                  This follow-up will queue for <strong style={{ color: "var(--wm-text)" }}>{followUpCount ?? 0}</strong> contact{followUpCount === 1 ? "" : "s"} in <strong style={{ color: "var(--wm-text)" }}>{followUpSegmentLabel(followUpSegment)}</strong>.
+                </>
+              ) : (
+                <>
+                  This will send to <strong style={{ color: "var(--wm-text)" }}>{previewContacts.length}</strong> contact{previewContacts.length === 1 ? "" : "s"} in this campaign.
+                </>
+              )}
               {attachments.length > 0 && (
                 <span>
                   {" "}
@@ -659,17 +1072,21 @@ export default function EmailComposer({
               <button
                 onClick={handleConfirmSend}
                 aria-label="Confirm send now"
-                disabled={isSending}
+                disabled={isSending || (sendMode === "followup" && isLoadingFollowUpCount)}
                 className="px-4 py-2 rounded-xl text-xs font-semibold transition-all"
                 style={{
                   background: isSending ? "rgba(43,122,95,0.4)" : "var(--wm-accent)",
                   color: "var(--wm-accent-text)",
                   border: "none",
-                  cursor: isSending ? "not-allowed" : "pointer",
-                  opacity: isSending ? 0.7 : 1,
+                  cursor: isSending || (sendMode === "followup" && isLoadingFollowUpCount) ? "not-allowed" : "pointer",
+                  opacity: isSending || (sendMode === "followup" && isLoadingFollowUpCount) ? 0.7 : 1,
                 }}
               >
-                {isSending ? "Queueing..." : "Queue send"}
+                {isSending
+                  ? "Queueing..."
+                  : sendMode === "followup"
+                    ? "Queue follow-up"
+                    : "Queue send"}
               </button>
             </div>
           </div>
@@ -833,13 +1250,190 @@ export default function EmailComposer({
         </div>
       </div>
 
-      {/* ── AI error ────────────────────────────────────────────────────── */}
+      {sendMode === "followup" && (
+        <div
+          className="rk-fade-in flex items-start justify-between gap-3 rounded-2xl px-4 py-3 flex-wrap"
+          style={{
+            background: "linear-gradient(135deg, rgba(43,122,95,0.12), rgba(212,168,83,0.08))",
+            border: "1px solid rgba(43,122,95,0.22)",
+          }}
+        >
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.2em] mb-1" style={{ color: "var(--wm-accent)" }}>
+              Follow-Up Armed
+            </div>
+            <div className="text-sm font-medium" style={{ color: "var(--wm-text)" }}>
+              {followUpSegmentLabel(followUpSegment)}
+            </div>
+            <div className="text-xs mt-1" style={{ color: "var(--wm-text-muted)" }}>
+              {isLoadingFollowUpCount
+                ? "Checking who matches this audience..."
+                : `${followUpCount ?? 0} matching contact${followUpCount === 1 ? "" : "s"} based on each contact's latest campaign send.`}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFollowUpReview((current) => !current)}
+              className="px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{
+                background: "var(--wm-accent)",
+                border: "1px solid transparent",
+                color: "var(--wm-accent-text)",
+                cursor: "pointer",
+              }}
+            >
+              {showFollowUpReview ? "Hide audience" : "Review audience"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSendMode("initial");
+                setShowFollowUpReview(false);
+                setFollowUpAudienceError("");
+                setSendError("");
+              }}
+              className="px-3 py-2 rounded-xl text-xs font-medium transition-all"
+              style={{
+                background: "transparent",
+                border: "1px solid var(--wm-border)",
+                color: "var(--wm-text-muted)",
+                cursor: "pointer",
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
+      {sendMode === "followup" && showFollowUpReview && (
+        <div
+          className="rk-fade-in rounded-2xl p-4 space-y-4"
+          style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
+        >
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] mb-1" style={{ color: "var(--wm-accent)" }}>
+                Review Audience
+              </div>
+              <div className="text-sm font-medium" style={{ color: "var(--wm-text)" }}>
+                {followUpSegmentLabel(followUpSegment)}
+              </div>
+              <div className="text-xs mt-1" style={{ color: "var(--wm-text-muted)" }}>
+                {isLoadingFollowUpPreview
+                  ? "Loading matching contacts..."
+                  : `${followUpPreview.length} contact${followUpPreview.length === 1 ? "" : "s"} will receive this follow-up.`}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFollowUpReview(false)}
+                className="px-3 py-2 rounded-xl text-xs font-medium transition-all"
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--wm-border)",
+                  color: "var(--wm-text-muted)",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSend}
+                disabled={isSending || isLoadingFollowUpCount || isLoadingFollowUpPreview}
+                className="px-4 py-2 rounded-xl text-xs font-semibold transition-all"
+                style={{
+                  background: isSending ? "rgba(43,122,95,0.4)" : "var(--wm-accent)",
+                  color: "var(--wm-accent-text)",
+                  border: "1px solid transparent",
+                  cursor: isSending || isLoadingFollowUpCount || isLoadingFollowUpPreview ? "not-allowed" : "pointer",
+                  opacity: isSending || isLoadingFollowUpCount || isLoadingFollowUpPreview ? 0.7 : 1,
+                }}
+              >
+                {isSending ? "Queueing..." : "Queue follow-up"}
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="px-3 py-2.5 rounded-xl text-xs space-y-1"
+            style={{ background: "var(--wm-surface-2)", border: "1px solid var(--wm-border)" }}
+          >
+            <div className="truncate" style={{ color: "var(--wm-text-muted)" }}>
+              <span style={{ color: "var(--wm-text-sub)" }}>Subject: </span>{subject || <em style={{ opacity: 0.5 }}>empty</em>}
+            </div>
+            <div className="line-clamp-2 leading-relaxed" style={{ color: "var(--wm-text-sub)" }}>
+              {body.slice(0, 140)}{body.length > 140 ? "…" : ""}
+            </div>
+          </div>
+
+          <div
+            className="max-h-72 overflow-y-auto rounded-xl"
+            style={{ border: "1px solid var(--wm-border)", background: "var(--wm-surface-2)" }}
+          >
+            {isLoadingFollowUpPreview ? (
+              <div className="px-4 py-6 text-sm text-center" style={{ color: "var(--wm-text-sub)" }}>
+                Loading audience preview…
+              </div>
+            ) : followUpPreview.length === 0 ? (
+              <div className="px-4 py-6 text-sm text-center" style={{ color: "var(--wm-text-sub)" }}>
+                No contacts match this follow-up audience.
+              </div>
+            ) : (
+              <div className="divide-y" style={{ borderColor: "var(--wm-border)" }}>
+                {followUpPreview.map((contact) => {
+                  const statusStyle = FOLLOW_UP_STATUS_STYLES[contact.latest_status];
+                  const fullName = [contact.first_name, contact.last_name].filter(Boolean).join(" ").trim();
+
+                  return (
+                    <div key={contact.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate" style={{ color: "var(--wm-text)" }}>
+                          {fullName || contact.email}
+                        </div>
+                        <div className="text-xs truncate" style={{ color: "var(--wm-text-sub)" }}>
+                          {contact.email}
+                          {contact.company ? ` · ${contact.company}` : ""}
+                        </div>
+                      </div>
+                      <span
+                        className="shrink-0 px-2 py-1 rounded-full text-[10px] uppercase tracking-wider font-semibold"
+                        style={{ background: statusStyle.bg, color: statusStyle.color }}
+                      >
+                        {contact.latest_status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {aiError && (
         <div
           className="rk-fade-in px-4 py-3 rounded-lg text-xs"
           style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
         >
           {aiError}
+        </div>
+      )}
+
+      {(aiStatus || aiActivity.length > 0) && (
+        <div
+          className="rk-fade-in px-4 py-3 rounded-lg text-xs space-y-1.5"
+          style={{ background: "rgba(43,122,95,0.06)", border: "1px solid rgba(43,122,95,0.18)", color: "var(--wm-text-muted)" }}
+        >
+          {aiStatus && <div style={{ color: "var(--wm-accent)" }}>{aiStatus}</div>}
+          {aiActivity.map((entry) => (
+            <div key={entry}>{entry}</div>
+          ))}
         </div>
       )}
 
@@ -1086,6 +1680,18 @@ export default function EmailComposer({
                     style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
                   >
                     {aiWriterError}
+                  </div>
+                )}
+
+                {(aiStatus || aiActivity.length > 0) && (
+                  <div
+                    className="mx-4 mb-2 px-3 py-2 rounded-lg text-[11px] space-y-1"
+                    style={{ background: "rgba(43,122,95,0.06)", border: "1px solid rgba(43,122,95,0.18)", color: "var(--wm-text-muted)" }}
+                  >
+                    {aiStatus && <div style={{ color: "var(--wm-accent)" }}>{aiStatus}</div>}
+                    {aiActivity.map((entry) => (
+                      <div key={entry}>{entry}</div>
+                    ))}
                   </div>
                 )}
 

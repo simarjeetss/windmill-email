@@ -2,6 +2,16 @@ import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildTrackedEmail } from "@/lib/email/templating";
 import { insertEmailEvent } from "@/lib/supabase/email-events";
+import {
+  getLatestContactStatus,
+  getLatestRowsByContact,
+  matchesFollowUpSegment,
+  resolveFollowUpAudienceContactIds,
+  type CampaignRunType,
+  type FollowUpAudienceRow,
+  type LatestContactStatus,
+  type FollowUpSegment,
+} from "@/lib/campaign-send/follow-up";
 import type { UserProfile } from "@/lib/supabase/profile";
 
 type SendRunStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
@@ -11,6 +21,8 @@ export type CampaignSendRun = {
   user_id: string;
   campaign_id: string;
   status: SendRunStatus;
+  run_type: CampaignRunType;
+  follow_up_segment: FollowUpSegment | null;
   subject: string;
   body: string;
   attachment_ids: string[];
@@ -51,6 +63,8 @@ type CreateRunInput = {
   subject: string;
   body: string;
   attachmentIds: string[];
+  runType?: CampaignRunType;
+  followUpSegment?: FollowUpSegment | null;
   contactIds?: string[];
 };
 
@@ -58,6 +72,16 @@ export type CreateRunResult = {
   run: CampaignSendRun | null;
   error: string | null;
   alreadyActive?: boolean;
+};
+
+export type FollowUpAudiencePreviewContact = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  latest_status: LatestContactStatus;
+  latest_activity_at: string;
 };
 
 function getBaseUrl(): string {
@@ -125,6 +149,114 @@ async function listContactsForRun(input: CreateRunInput): Promise<{ data: Contac
   return { data: (data ?? []) as ContactRow[], error: null };
 }
 
+async function listCampaignAudienceRows(
+  userId: string,
+  campaignId: string
+): Promise<{ data: FollowUpAudienceRow[]; error: string | null }> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("sent_emails")
+    .select("id, contact_id, status, created_at, sent_at, opened_at, clicked_at")
+    .eq("user_id", userId)
+    .eq("campaign_id", campaignId)
+    .not("contact_id", "is", null);
+
+  if (error) return { data: [], error: error.message };
+  return { data: (data ?? []) as FollowUpAudienceRow[], error: null };
+}
+
+async function resolveRunContactIds(
+  input: CreateRunInput
+): Promise<{ data: string[] | null; error: string | null }> {
+  if (input.contactIds?.length) {
+    return { data: Array.from(new Set(input.contactIds.filter(Boolean))), error: null };
+  }
+
+  if (input.runType !== "followup") {
+    return { data: null, error: null };
+  }
+
+  if (!input.followUpSegment) {
+    return { data: [], error: "Choose a follow-up segment before queueing this run." };
+  }
+
+  const { data: audienceRows, error } = await listCampaignAudienceRows(input.userId, input.campaignId);
+  if (error) return { data: [], error };
+
+  const contactIds = resolveFollowUpAudienceContactIds(audienceRows, input.followUpSegment);
+  return { data: contactIds, error: null };
+}
+
+export async function countFollowUpAudience(
+  userId: string,
+  campaignId: string,
+  segment: FollowUpSegment
+): Promise<{ count: number; error: string | null }> {
+  const { data, error } = await listCampaignAudienceRows(userId, campaignId);
+  if (error) return { count: 0, error };
+  return {
+    count: resolveFollowUpAudienceContactIds(data, segment).length,
+    error: null,
+  };
+}
+
+export async function previewFollowUpAudience(
+  userId: string,
+  campaignId: string,
+  segment: FollowUpSegment
+): Promise<{ contacts: FollowUpAudiencePreviewContact[]; error: string | null }> {
+  const { data: audienceRows, error } = await listCampaignAudienceRows(userId, campaignId);
+  if (error) return { contacts: [], error };
+
+  const latestRows = getLatestRowsByContact(audienceRows)
+    .filter((row) => matchesFollowUpSegment(row, segment))
+    .sort((a, b) => (b.sent_at ?? b.created_at).localeCompare(a.sent_at ?? a.created_at));
+
+  const contactIds = latestRows
+    .map((row) => row.contact_id)
+    .filter((contactId): contactId is string => Boolean(contactId));
+
+  if (contactIds.length === 0) {
+    return { contacts: [], error: null };
+  }
+
+  const supabase = createAdminClient();
+  const { data: contactsData, error: contactsError } = await supabase
+    .from("contacts")
+    .select("id, email, first_name, last_name, company")
+    .eq("user_id", userId)
+    .eq("campaign_id", campaignId)
+    .in("id", contactIds);
+
+  if (contactsError) return { contacts: [], error: contactsError.message };
+
+  const contactsById = new Map(
+    ((contactsData ?? []) as Array<Pick<ContactRow, "id" | "email" | "first_name" | "last_name" | "company">>).map(
+      (contact) => [contact.id, contact]
+    )
+  );
+
+  const contacts = latestRows
+    .map((row) => {
+      if (!row.contact_id) return null;
+      const contact = contactsById.get(row.contact_id);
+      if (!contact) return null;
+
+      return {
+        id: contact.id,
+        email: contact.email,
+        first_name: contact.first_name,
+        last_name: contact.last_name,
+        company: contact.company,
+        latest_status: getLatestContactStatus(row),
+        latest_activity_at: row.clicked_at ?? row.opened_at ?? row.sent_at ?? row.created_at,
+      } satisfies FollowUpAudiencePreviewContact;
+    })
+    .filter((contact): contact is FollowUpAudiencePreviewContact => Boolean(contact));
+
+  return { contacts, error: null };
+}
+
 async function recalcRunCounts(runId: string): Promise<{ sent: number; failed: number; pending: number }> {
   const supabase = createAdminClient();
   const { data } = await supabase.from("sent_emails").select("status").eq("run_id", runId);
@@ -137,6 +269,8 @@ async function recalcRunCounts(runId: string): Promise<{ sent: number; failed: n
 export async function createCampaignSendRun(input: CreateRunInput): Promise<CreateRunResult> {
   const trimmedSubject = input.subject.trim();
   const trimmedBody = input.body.trim();
+  const runType = input.runType ?? "initial";
+  const followUpSegment = runType === "followup" ? input.followUpSegment ?? null : null;
 
   if (!trimmedSubject) return { run: null, error: "Subject is required." };
   if (!trimmedBody) return { run: null, error: "Body is required." };
@@ -161,9 +295,29 @@ export async function createCampaignSendRun(input: CreateRunInput): Promise<Crea
     return { run: null, error: campaignError?.message ?? "Campaign not found." };
   }
 
-  const { data: contacts, error: contactsError } = await listContactsForRun(input);
+  const { data: resolvedContactIds, error: resolveContactsError } = await resolveRunContactIds({
+    ...input,
+    runType,
+    followUpSegment,
+  });
+  if (resolveContactsError) return { run: null, error: resolveContactsError };
+
+  const { data: contacts, error: contactsError } = await listContactsForRun({
+    ...input,
+    runType,
+    followUpSegment,
+    contactIds: resolvedContactIds ?? input.contactIds,
+  });
   if (contactsError) return { run: null, error: contactsError };
-  if (contacts.length === 0) return { run: null, error: "No contacts to send to." };
+  if (contacts.length === 0) {
+    return {
+      run: null,
+      error:
+        runType === "followup"
+          ? "No contacts match the selected follow-up segment."
+          : "No contacts to send to.",
+    };
+  }
 
   const dedupedAttachmentIds = Array.from(new Set(input.attachmentIds.filter(Boolean)));
   const { error: attachmentError } = await loadAttachmentsForSendAdmin(input.userId, dedupedAttachmentIds);
@@ -175,6 +329,8 @@ export async function createCampaignSendRun(input: CreateRunInput): Promise<Crea
       user_id: input.userId,
       campaign_id: input.campaignId,
       status: "queued",
+      run_type: runType,
+      follow_up_segment: followUpSegment,
       subject: trimmedSubject,
       body: trimmedBody,
       attachment_ids: dedupedAttachmentIds,
@@ -490,6 +646,7 @@ export async function retryFailedCampaignSendRun(runId: string, userId: string):
     subject: run.subject,
     body: run.body,
     attachmentIds: run.attachment_ids ?? [],
+    runType: "retry",
     contactIds: failedContactIds,
   });
 }

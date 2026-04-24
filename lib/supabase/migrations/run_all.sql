@@ -416,3 +416,14 @@ create index if not exists sent_emails_run_id_idx on sent_emails(run_id);
 create unique index if not exists sent_emails_run_contact_uidx
   on sent_emails(run_id, contact_id)
   where run_id is not null;
+
+
+-- ─── 012: campaign_send_runs targeting metadata (see 012_campaign_send_run_types.sql) ─
+
+alter table campaign_send_runs
+  add column if not exists run_type text not null default 'initial';
+
+alter table campaign_send_runs
+  add column if not exists follow_up_segment text;
+
+create index if not exists campaign_send_runs_run_type_idx on campaign_send_runs(run_type);
