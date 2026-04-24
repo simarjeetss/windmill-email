@@ -6,10 +6,17 @@ import {
   getLatestCampaignSendRun,
   retryCampaignSendRun,
 } from "@/lib/supabase/sent-emails";
+import {
+  getCampaignRunLabel,
+  type CampaignRunType,
+  type FollowUpSegment,
+} from "@/lib/campaign-send/follow-up";
 
 type CampaignSendRun = {
   id: string;
   status: "queued" | "running" | "completed" | "failed" | "cancelled";
+  run_type: CampaignRunType;
+  follow_up_segment: FollowUpSegment | null;
   total_count: number;
   sent_count: number;
   failed_count: number;
@@ -111,6 +118,9 @@ export default function SendRunStatus({ campaignId, initialRun }: Props) {
             Background delivery
           </div>
           <div className="text-sm font-medium" style={{ color: "var(--wm-text)" }}>
+            {getCampaignRunLabel(run.run_type, run.follow_up_segment)}
+          </div>
+          <div className="text-xs" style={{ color: "var(--wm-text-sub)" }}>
             {statusLabel(run.status)}
             {(run.status === "queued" || run.status === "running") && (
               <span

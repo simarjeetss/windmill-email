@@ -7,6 +7,8 @@ import AddContactForm from "@/components/campaigns/add-contact-form";
 import CsvImportButton from "@/components/campaigns/csv-import-button";
 import SmartImportButton from "@/components/campaigns/smart-import-button";
 import CampaignFileList from "@/components/campaigns/campaign-file-list";
+import FollowUpPanel from "@/components/campaigns/follow-up-panel";
+import type { FollowUpSegment } from "@/lib/campaign-send/follow-up";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
 import type { EmailAgentCampaignFileContext } from "@/lib/ai/email-agent.types";
 import type { Contact } from "@/lib/supabase/campaigns";
@@ -15,6 +17,11 @@ import type { CampaignFile } from "@/lib/supabase/campaign-files";
 import type { CampaignSendRun } from "@/lib/campaign-send/service";
 
 type Tab = "email" | "contacts" | "files";
+
+type FollowUpIntent = {
+  segment: FollowUpSegment;
+  nonce: number;
+};
 
 interface CampaignTabsProps {
   campaignId: string;
@@ -38,6 +45,7 @@ export default function CampaignTabs({
   initialLatestRun,
 }: CampaignTabsProps) {
   const [tab, setTab] = useState<Tab>("email");
+  const [followUpIntent, setFollowUpIntent] = useState<FollowUpIntent | null>(null);
   const emailAgentFiles: EmailAgentCampaignFileContext[] = files.map((file) => ({
     id: file.id,
     fileName: file.file_name,
@@ -47,6 +55,15 @@ export default function CampaignTabs({
 
   return (
     <div className="rk-fade-up rk-delay-2">
+      <FollowUpPanel
+        campaignId={campaignId}
+        selectedSegment={followUpIntent?.segment ?? null}
+        onPrepareSegment={(segment) => {
+          setFollowUpIntent({ segment, nonce: Date.now() });
+          setTab("email");
+        }}
+      />
+
       {/* ── Tab bar ─────────────────────────────────────────────────────── */}
       <div
         className="flex flex-wrap items-center gap-1 mb-6 p-1 rounded-xl w-full sm:w-fit"
@@ -163,6 +180,7 @@ export default function CampaignTabs({
           initialProfile={initialProfile}
           campaignFiles={emailAgentFiles}
           initialLatestRun={initialLatestRun}
+          followUpIntent={followUpIntent}
         />
       )}
 

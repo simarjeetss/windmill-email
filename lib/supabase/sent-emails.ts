@@ -8,11 +8,15 @@ import { loadAttachmentsForSend } from "@/lib/supabase/template-attachments";
 import { inngest } from "@/lib/inngest/client";
 import {
   cancelCampaignSendRun as cancelCampaignSendRunService,
+  countFollowUpAudience,
   createCampaignSendRun,
   getLatestCampaignRun,
+  previewFollowUpAudience,
   retryFailedCampaignSendRun,
   type CampaignSendRun,
+  type FollowUpAudiencePreviewContact,
 } from "@/lib/campaign-send/service";
+import type { FollowUpSegment } from "@/lib/campaign-send/follow-up";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
 
@@ -25,6 +29,11 @@ export type SendCampaignResult = {
 export type EnqueueCampaignSendResult = {
   run: CampaignSendRun | null;
   error: string | null;
+};
+
+export type EnqueueCampaignSendOptions = {
+  mode?: "initial" | "followup";
+  followUpSegment?: FollowUpSegment | null;
 };
 
 export type CampaignStats = {
@@ -106,7 +115,8 @@ export async function enqueueCampaignSend(
   campaignId: string,
   subject: string,
   body: string,
-  attachmentIds?: string[]
+  attachmentIds?: string[],
+  options?: EnqueueCampaignSendOptions
 ): Promise<EnqueueCampaignSendResult> {
   const supabase = await createClient();
   const {
@@ -120,6 +130,8 @@ export async function enqueueCampaignSend(
     subject,
     body,
     attachmentIds: attachmentIds ?? [],
+    runType: options?.mode === "followup" ? "followup" : "initial",
+    followUpSegment: options?.mode === "followup" ? options.followUpSegment ?? null : null,
   });
 
   if (result.error || !result.run) {
@@ -144,6 +156,32 @@ export async function enqueueCampaignSend(
   }
 
   return { run: result.run, error: null };
+}
+
+export async function getFollowUpAudienceCount(
+  campaignId: string,
+  followUpSegment: FollowUpSegment
+): Promise<{ count: number; error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { count: 0, error: "Not authenticated" };
+
+  return countFollowUpAudience(user.id, campaignId, followUpSegment);
+}
+
+export async function getFollowUpAudiencePreview(
+  campaignId: string,
+  followUpSegment: FollowUpSegment
+): Promise<{ contacts: FollowUpAudiencePreviewContact[]; error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { contacts: [], error: "Not authenticated" };
+
+  return previewFollowUpAudience(user.id, campaignId, followUpSegment);
 }
 
 export async function getLatestCampaignSendRun(campaignId: string): Promise<CampaignSendRun | null> {
