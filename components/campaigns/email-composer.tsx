@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, useCallback } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { createTemplate } from "@/lib/supabase/email-templates";
 import { enqueueCampaignSend } from "@/lib/supabase/sent-emails";
 import {
@@ -12,8 +12,12 @@ import {
   deleteTemplateAttachment,
   getTemplateAttachments,
 } from "@/lib/supabase/template-attachments";
-import { generateEmailWithAI } from "@/lib/ai/generate-email";
-import { polishEmailWithAI } from "@/lib/ai/polish-email";
+import type {
+  EmailAgentCampaignFileContext,
+  EmailAgentFinalResult,
+  EmailAgentRequest,
+  EmailAgentStreamEvent,
+} from "@/lib/ai/email-agent.types";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
@@ -24,11 +28,81 @@ import SendRunStatus from "@/components/campaigns/send-run-status";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 /** Variables that relate to the contact (recipient) */
 const CONTACT_VARIABLES = ["{{first_name}}", "{{last_name}}", "{{company}}"];
 
 /** Sender variables — resolved from profile, shown with resolved value */
 const SENDER_VARIABLES = ["{{sender_name}}", "{{sender_company}}"];
+
+function toolLabel(tool: string): string {
+  if (tool === "google_search_research") return "Google Search";
+  if (tool === "campaign_url_context") return "URL Context";
+  return tool;
+}
+
+async function streamEmailAgentRequest(
+  payload: EmailAgentRequest,
+  onEvent: (event: EmailAgentStreamEvent) => void
+): Promise<EmailAgentFinalResult> {
+  const response = await fetch("/api/ai/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(errorBody?.error ?? `Request failed with status ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error("AI response stream was unavailable.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalResult: EmailAgentFinalResult | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const line = chunk
+        .split("\n")
+        .find((entry) => entry.startsWith("data: "));
+
+      if (!line) {
+        continue;
+      }
+
+      const event = JSON.parse(line.slice(6)) as EmailAgentStreamEvent;
+      onEvent(event);
+
+      if (event.type === "error") {
+        throw new Error(event.error);
+      }
+
+      if (event.type === "final") {
+        finalResult = event.result;
+      }
+    }
+  }
+
+  if (!finalResult) {
+    throw new Error("AI did not return a final result.");
+  }
+
+  return finalResult;
+}
 
 function applyPreview(
   text: string,
@@ -60,6 +134,7 @@ export default function EmailComposer({
   initialTemplate,
   previewContacts,
   initialProfile,
+  campaignFiles,
   initialLatestRun,
 }: {
   campaignId: string;
@@ -68,6 +143,7 @@ export default function EmailComposer({
   initialTemplate: EmailTemplate | null;
   previewContacts: Contact[];
   initialProfile: UserProfile | null;
+  campaignFiles: EmailAgentCampaignFileContext[];
   initialLatestRun: CampaignSendRun | null;
 }) {
   const [subject,      setSubject]     = useState(initialTemplate?.subject ?? "");
@@ -79,6 +155,8 @@ export default function EmailComposer({
   const [saveStatus,   setSaveStatus]  = useState<"idle" | "saved" | "error">("idle");
   const [saveError,    setSaveError]   = useState("");
   const [aiError,      setAiError]     = useState("");
+  const [aiStatus,     setAiStatus]    = useState("");
+  const [aiActivity,   setAiActivity]  = useState<string[]>([]);
   const [isSaving,     startSave]      = useTransition();
   const [isGenerating, startGenerate]  = useTransition();
   const [isSending,    startSend]      = useTransition();
@@ -307,32 +385,50 @@ export default function EmailComposer({
   }
 
   function handleGenerate() {
-    setAiError("");
+    resetAiFeedback();
     startGenerate(async () => {
       const sample = previewContacts[0] ?? null;
-      const result = await generateEmailWithAI({
-        campaignName,
-        campaignDescription,
-        contactFirstName: sample?.first_name,
-        contactLastName:  sample?.last_name,
-        contactCompany:   sample?.company,
-        senderName:       profile?.full_name,
-      });
-      if (result.error) {
-        if (result.error.startsWith("__RATE_LIMIT__:")) {
+      try {
+        const result = await streamEmailAgentRequest(
+          {
+            mode: "generate",
+            campaignId,
+            campaignName,
+            campaignDescription,
+            contact: {
+              firstName: sample?.first_name,
+              lastName: sample?.last_name,
+              company: sample?.company,
+              email: sample?.email,
+            },
+            sender: {
+              name: profile?.full_name,
+              company: profile?.company,
+            },
+            campaignFiles,
+          },
+          handleAiStreamEvent
+        );
+
+        if (!result.subject) {
+          throw new Error("Incomplete response from AI.");
+        }
+
+        setSubject(result.subject);
+        setBody(result.body);
+        setAttachments([]);
+        setLoadedTemplateId(null);
+        setSavedAttachSig("");
+        setSaveStatus("idle");
+        setSendStatus("idle");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message.startsWith("__RATE_LIMIT__:")) {
           setShowUpgradeModal(true);
         } else {
-          setAiError(result.error);
+          setAiError(message);
         }
-        return;
       }
-      setSubject(result.subject);
-      setBody(result.body);
-      setAttachments([]);
-      setLoadedTemplateId(null);
-      setSavedAttachSig("");
-      setSaveStatus("idle");
-      setSendStatus("idle");
     });
   }
 
@@ -344,6 +440,46 @@ export default function EmailComposer({
   const [isPolishing,    startPolish]       = useTransition();
   const writerRef = useRef<HTMLTextAreaElement>(null);
 
+  function resetAiFeedback() {
+    setAiError("");
+    setAiStatus("");
+    setAiActivity([]);
+  }
+
+  function appendAiActivity(line: string) {
+    setAiActivity((current) => [...current, line].slice(-4));
+  }
+
+  function handleAiStreamEvent(event: EmailAgentStreamEvent) {
+    if (event.type === "status") {
+      setAiStatus(event.message);
+      return;
+    }
+
+    if (event.type === "tool-start") {
+      appendAiActivity(`${toolLabel(event.tool)} started`);
+      return;
+    }
+
+    if (event.type === "tool-end") {
+      appendAiActivity(`${toolLabel(event.tool)} finished`);
+      return;
+    }
+
+    if (event.type === "error") {
+      if (showAiWriter) {
+        setAiWriterError(event.error);
+      } else {
+        setAiError(event.error);
+      }
+      return;
+    }
+
+    if (event.type === "final") {
+      setAiStatus("AI draft ready.");
+    }
+  }
+
   // Focus the writer textarea when panel opens
   useEffect(() => {
     if (showAiWriter) {
@@ -351,18 +487,19 @@ export default function EmailComposer({
     }
   }, [showAiWriter]);
 
-  const openAiWriter = useCallback(() => {
+  const openAiWriter = () => {
+    resetAiFeedback();
     setAiWriterError("");
     setAiWriterPrompt("");
     setShowAiWriter(true);
-  }, []);
+  };
 
-  const closeAiWriter = useCallback(() => {
+  const closeAiWriter = () => {
     setShowAiWriter(false);
     setAiWriterError("");
     // Restore focus to the body textarea
     setTimeout(() => bodyRef.current?.focus(), 60);
-  }, []);
+  };
 
   function handleBodyKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     // Open AI writer when "/" is typed and the body is empty (or the field is empty)
@@ -384,26 +521,47 @@ export default function EmailComposer({
 
   function handlePolish() {
     setAiWriterError("");
+    resetAiFeedback();
     startPolish(async () => {
-      const result = await polishEmailWithAI({
-        userInput:    aiWriterPrompt,
-        mode:         aiWriterMode,
-        campaignName,
-        senderName:   profile?.full_name,
-      });
-      if (result.error) {
-        if (result.error.startsWith("__RATE_LIMIT__:")) {
+      try {
+        const result = await streamEmailAgentRequest(
+          {
+            mode: "writer",
+            writerMode: aiWriterMode,
+            campaignId,
+            campaignName,
+            campaignDescription,
+            userInput: aiWriterPrompt,
+            sender: {
+              name: profile?.full_name,
+              company: profile?.company,
+            },
+            contact: previewContact
+              ? {
+                  firstName: previewContact.first_name,
+                  lastName: previewContact.last_name,
+                  company: previewContact.company,
+                  email: previewContact.email,
+                }
+              : undefined,
+            campaignFiles,
+          },
+          handleAiStreamEvent
+        );
+
+        setBody(result.body);
+        if (result.subject) setSubject(result.subject);
+        setSaveStatus("idle");
+        closeAiWriter();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message.startsWith("__RATE_LIMIT__:")) {
           closeAiWriter();
           setShowUpgradeModal(true);
         } else {
-          setAiWriterError(result.error);
+          setAiWriterError(message);
         }
-        return;
       }
-      setBody(result.body);
-      if (result.subject) setSubject(result.subject);
-      setSaveStatus("idle");
-      closeAiWriter();
     });
   }
 
@@ -843,6 +1001,18 @@ export default function EmailComposer({
         </div>
       )}
 
+      {(aiStatus || aiActivity.length > 0) && (
+        <div
+          className="rk-fade-in px-4 py-3 rounded-lg text-xs space-y-1.5"
+          style={{ background: "rgba(43,122,95,0.06)", border: "1px solid rgba(43,122,95,0.18)", color: "var(--wm-text-muted)" }}
+        >
+          {aiStatus && <div style={{ color: "var(--wm-accent)" }}>{aiStatus}</div>}
+          {aiActivity.map((entry) => (
+            <div key={entry}>{entry}</div>
+          ))}
+        </div>
+      )}
+
       {/* ── Save feedback ────────────────────────────────────────────────── */}
       {saveStatus === "saved" && (
         <div
@@ -1086,6 +1256,18 @@ export default function EmailComposer({
                     style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
                   >
                     {aiWriterError}
+                  </div>
+                )}
+
+                {(aiStatus || aiActivity.length > 0) && (
+                  <div
+                    className="mx-4 mb-2 px-3 py-2 rounded-lg text-[11px] space-y-1"
+                    style={{ background: "rgba(43,122,95,0.06)", border: "1px solid rgba(43,122,95,0.18)", color: "var(--wm-text-muted)" }}
+                  >
+                    {aiStatus && <div style={{ color: "var(--wm-accent)" }}>{aiStatus}</div>}
+                    {aiActivity.map((entry) => (
+                      <div key={entry}>{entry}</div>
+                    ))}
                   </div>
                 )}
 

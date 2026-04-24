@@ -8,6 +8,7 @@ import CsvImportButton from "@/components/campaigns/csv-import-button";
 import SmartImportButton from "@/components/campaigns/smart-import-button";
 import CampaignFileList from "@/components/campaigns/campaign-file-list";
 import type { EmailTemplate } from "@/lib/supabase/email-templates";
+import type { EmailAgentCampaignFileContext } from "@/lib/ai/email-agent.types";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
 import type { CampaignFile } from "@/lib/supabase/campaign-files";
@@ -37,6 +38,12 @@ export default function CampaignTabs({
   initialLatestRun,
 }: CampaignTabsProps) {
   const [tab, setTab] = useState<Tab>("email");
+  const emailAgentFiles: EmailAgentCampaignFileContext[] = files.map((file) => ({
+    id: file.id,
+    fileName: file.file_name,
+    storagePath: file.storage_path,
+    contentType: file.content_type,
+  }));
 
   return (
     <div className="rk-fade-up rk-delay-2">
@@ -154,6 +161,7 @@ export default function CampaignTabs({
           initialTemplate={initialTemplate}
           previewContacts={contacts}
           initialProfile={initialProfile}
+          campaignFiles={emailAgentFiles}
           initialLatestRun={initialLatestRun}
         />
       )}

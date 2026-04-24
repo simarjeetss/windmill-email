@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 
 export type EmailLogEntry = {
   id: string;
@@ -29,11 +28,6 @@ function deriveDisplayStatus(entry: EmailLogEntry): string {
   if (entry.clickedAt) return "clicked";
   if (entry.openedAt) return "opened";
   return entry.status || "pending";
-}
-
-function statusLabel(status: string): string {
-  if (status === "opened") return "Opened(est.)";
-  return status;
 }
 
 function formatTs(value: string | null) {
@@ -75,14 +69,9 @@ function EmailDetailDialog({
     };
   }, [handleKeyDown]);
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const overlay = (
+  return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -193,7 +182,7 @@ function EmailDetailDialog({
                 className="inline-block w-1.5 h-1.5 rounded-full"
                 style={{ background: sty.color }}
               />
-              {statusLabel(displayStatus)}
+              {displayStatus}
             </span>
 
             {/* Divider dot */}
@@ -208,7 +197,7 @@ function EmailDetailDialog({
               <>
                 <span className="w-0.5 h-0.5 rounded-full" style={{ background: "var(--wm-text-sub)" }} />
                 <span style={{ color: "#3b82f6" }}>
-                  Opened (est.) {formatTs(entry.openedAt)}
+                  Opened {formatTs(entry.openedAt)}
                 </span>
               </>
             )}
@@ -271,9 +260,6 @@ function EmailDetailDialog({
       </div>
     </div>
   );
-
-  if (!mounted) return null;
-  return createPortal(overlay, document.body);
 }
 
 /* ── Main Email Log component ──────────────────────────────────── */
@@ -414,7 +400,7 @@ export default function EmailLog({ entries }: { entries: EmailLogEntry[] }) {
               <th className="pb-3 pr-4 font-medium">Subject</th>
               <th className="pb-3 pr-4 font-medium hidden md:table-cell">Campaign</th>
               <th className="pb-3 pr-4 font-medium hidden sm:table-cell">Sent</th>
-              <th className="pb-3 pr-4 font-medium hidden lg:table-cell">Opened (est.)</th>
+              <th className="pb-3 pr-4 font-medium hidden lg:table-cell">Opened</th>
               <th className="pb-3 pr-4 font-medium hidden lg:table-cell">Clicked</th>
               <th className="pb-3 font-medium">Status</th>
             </tr>
@@ -523,7 +509,7 @@ export default function EmailLog({ entries }: { entries: EmailLogEntry[] }) {
                           color: statusStyle.color,
                         }}
                       >
-                        {statusLabel(displayStatus)}
+                        {displayStatus}
                       </span>
                     </td>
                   </tr>
