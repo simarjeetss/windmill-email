@@ -14,7 +14,10 @@ import type { EmailAgentCampaignFileContext } from "@/lib/ai/email-agent.types";
 import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
 import type { CampaignFile } from "@/lib/supabase/campaign-files";
-import type { CampaignSendRun } from "@/lib/campaign-send/service";
+import type {
+  CampaignSendRun,
+  FollowUpAudienceSummary,
+} from "@/lib/campaign-send/service";
 
 type Tab = "email" | "contacts" | "files";
 
@@ -32,6 +35,7 @@ interface CampaignTabsProps {
   initialProfile: UserProfile | null;
   files: CampaignFile[];
   initialLatestRun: CampaignSendRun | null;
+  initialFollowUpAudienceSummary: FollowUpAudienceSummary;
 }
 
 export default function CampaignTabs({
@@ -43,6 +47,7 @@ export default function CampaignTabs({
   initialProfile,
   files,
   initialLatestRun,
+  initialFollowUpAudienceSummary,
 }: CampaignTabsProps) {
   const [tab, setTab] = useState<Tab>("email");
   const [followUpIntent, setFollowUpIntent] = useState<FollowUpIntent | null>(null);
@@ -57,6 +62,7 @@ export default function CampaignTabs({
     <div className="rk-fade-up rk-delay-2">
       <FollowUpPanel
         campaignId={campaignId}
+        initialSummary={initialFollowUpAudienceSummary}
         selectedSegment={followUpIntent?.segment ?? null}
         onPrepareSegment={(segment) => {
           setFollowUpIntent({ segment, nonce: Date.now() });
@@ -181,6 +187,7 @@ export default function CampaignTabs({
           campaignFiles={emailAgentFiles}
           initialLatestRun={initialLatestRun}
           followUpIntent={followUpIntent}
+          initialFollowUpAudienceSummary={initialFollowUpAudienceSummary}
         />
       )}
 

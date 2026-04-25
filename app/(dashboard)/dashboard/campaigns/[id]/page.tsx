@@ -1,6 +1,10 @@
 import { getCampaign, getContacts } from "@/lib/supabase/campaigns";
 import { getProfile } from "@/lib/supabase/profile";
-import { getCampaignStats, getLatestCampaignSendRun } from "@/lib/supabase/sent-emails";
+import {
+  getCampaignFollowUpAudienceSummary,
+  getCampaignStats,
+  getLatestCampaignSendRun,
+} from "@/lib/supabase/sent-emails";
 import { getCampaignFiles } from "@/lib/supabase/campaign-files";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -28,6 +32,7 @@ export default async function CampaignDetailPage({
     stats,
     { data: files },
     latestRun,
+    { summary: followUpAudienceSummary },
   ] = await Promise.all([
     getCampaign(id),
     getContacts(id),
@@ -35,6 +40,7 @@ export default async function CampaignDetailPage({
     getCampaignStats(id),
     getCampaignFiles(id),
     getLatestCampaignSendRun(id),
+    getCampaignFollowUpAudienceSummary(id),
   ]);
 
   if (cError || !campaign) notFound();
@@ -135,6 +141,7 @@ export default async function CampaignDetailPage({
         initialProfile={profile}
         files={files}
         initialLatestRun={latestRun}
+        initialFollowUpAudienceSummary={followUpAudienceSummary}
       />
     </div>
   );

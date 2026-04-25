@@ -3,7 +3,6 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   cancelCampaignSendRun,
-  getLatestCampaignSendRun,
   retryCampaignSendRun,
 } from "@/lib/supabase/sent-emails";
 import {
@@ -30,6 +29,8 @@ type Props = {
 };
 
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
+const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const STALE_AGE_MS = 15 * 60 * 1000;   // treat as stuck if run is >15 min old with no progress
 
 function statusLabel(status: CampaignSendRun["status"]): string {
   if (status === "queued") return "Queued";
@@ -45,18 +46,66 @@ export default function SendRunStatus({ campaignId, initialRun }: Props) {
   const [isRetrying, startRetry] = useTransition();
   const [isCancelling, startCancel] = useTransition();
 
+  async function fetchLatestRun(signal?: AbortSignal): Promise<CampaignSendRun | null> {
+    const response = await fetch(`/api/campaigns/${campaignId}/latest-run`, {
+      method: "GET",
+      cache: "no-store",
+      signal,
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to refresh send status.");
+    }
+
+    const payload = (await response.json()) as {
+      run: CampaignSendRun | null;
+      error: string | null;
+    };
+
+    if (payload.error) {
+      throw new Error(payload.error);
+    }
+
+    return payload.run;
+  }
+
   useEffect(() => {
     setRun(initialRun);
   }, [initialRun]);
 
   useEffect(() => {
     if (!run || TERMINAL_STATUSES.has(run.status)) return;
+
+    // If the run is already older than STALE_AGE_MS and still non-terminal,
+    // it was likely abandoned — stop polling and surface an error immediately.
+    const ageMs = Date.now() - new Date(run.created_at).getTime();
+    if (ageMs > STALE_AGE_MS) {
+      setError("This send job appears to be stuck. You can cancel it and retry.");
+      return;
+    }
+
     let stopped = false;
+    let controller: AbortController | null = null;
 
     const refresh = async () => {
       if (stopped) return;
-      const latest = await getLatestCampaignSendRun(campaignId);
-      if (latest) setRun(latest as CampaignSendRun);
+      controller?.abort();
+      controller = new AbortController();
+
+      try {
+        const latest = await fetchLatestRun(controller.signal);
+        if (latest) {
+          setRun(latest);
+          setError("");
+        }
+      } catch (refreshError) {
+        if ((refreshError as Error).name === "AbortError") return;
+        if (!stopped) {
+          setError(
+            refreshError instanceof Error ? refreshError.message : "Unable to refresh send status."
+          );
+        }
+      }
     };
 
     void refresh();
@@ -64,11 +113,21 @@ export default function SendRunStatus({ campaignId, initialRun }: Props) {
       void refresh();
     }, 1200);
 
+    // Stop polling after POLL_TIMEOUT_MS regardless of status.
+    const timeout = setTimeout(() => {
+      stopped = true;
+      controller?.abort();
+      clearInterval(timer);
+      setError("This send job appears to be stuck. You can cancel it and retry.");
+    }, POLL_TIMEOUT_MS);
+
     return () => {
       stopped = true;
+      controller?.abort();
       clearInterval(timer);
+      clearTimeout(timeout);
     };
-  }, [campaignId, run]);
+  }, [campaignId, run?.id, run?.status]);
 
   if (!run) return null;
 

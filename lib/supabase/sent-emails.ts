@@ -10,11 +10,13 @@ import {
   cancelCampaignSendRun as cancelCampaignSendRunService,
   countFollowUpAudience,
   createCampaignSendRun,
+  getFollowUpAudienceSummary,
   getLatestCampaignRun,
   previewFollowUpAudience,
   retryFailedCampaignSendRun,
   type CampaignSendRun,
   type FollowUpAudiencePreviewContact,
+  type FollowUpAudienceSummary,
 } from "@/lib/campaign-send/service";
 import type { FollowUpSegment } from "@/lib/campaign-send/follow-up";
 import type { Contact } from "@/lib/supabase/campaigns";
@@ -35,6 +37,17 @@ export type EnqueueCampaignSendOptions = {
   mode?: "initial" | "followup";
   followUpSegment?: FollowUpSegment | null;
 };
+
+function formatQueueSendError(message: string, options?: EnqueueCampaignSendOptions): string {
+  if (
+    options?.mode === "followup" &&
+    /(run_type|follow_up_segment|schema cache|column .* does not exist)/i.test(message)
+  ) {
+    return "Follow-up sends need the latest database migration before they can be queued.";
+  }
+
+  return message;
+}
 
 export type CampaignStats = {
   sent: number;
@@ -118,44 +131,73 @@ export async function enqueueCampaignSend(
   attachmentIds?: string[],
   options?: EnqueueCampaignSendOptions
 ): Promise<EnqueueCampaignSendResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { run: null, error: "Not authenticated" };
-
-  const result = await createCampaignSendRun({
-    userId: user.id,
-    campaignId,
-    subject,
-    body,
-    attachmentIds: attachmentIds ?? [],
-    runType: options?.mode === "followup" ? "followup" : "initial",
-    followUpSegment: options?.mode === "followup" ? options.followUpSegment ?? null : null,
-  });
-
-  if (result.error || !result.run) {
-    return { run: result.run, error: result.error ?? "Could not enqueue campaign." };
-  }
-
   try {
-    await inngest.send({
-      id: result.run.id,
-      name: "campaign/send.requested",
-      data: {
-        runId: result.run.id,
-        userId: result.run.user_id,
-        campaignId: result.run.campaign_id,
-      },
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { run: null, error: "Not authenticated" };
+
+    const result = await createCampaignSendRun({
+      userId: user.id,
+      campaignId,
+      subject,
+      body,
+      attachmentIds: attachmentIds ?? [],
+      runType: options?.mode === "followup" ? "followup" : "initial",
+      followUpSegment: options?.mode === "followup" ? options.followUpSegment ?? null : null,
     });
+
+    if (result.error || !result.run) {
+      return {
+        run: result.run,
+        error: formatQueueSendError(result.error ?? "Could not enqueue campaign.", options),
+      };
+    }
+
+    try {
+      await inngest.send({
+        id: result.run.id,
+        name: "campaign/send.requested",
+        data: {
+          runId: result.run.id,
+          userId: result.run.user_id,
+          campaignId: result.run.campaign_id,
+        },
+      });
+    } catch (inngestError) {
+      // The run row was already inserted. Mark it failed so it doesn't
+      // block future sends with a "Campaign send already in progress" error.
+      try {
+        const { createAdminClient } = await import("@/lib/supabase/admin");
+        const admin = createAdminClient();
+        await admin
+          .from("campaign_send_runs")
+          .update({
+            status: "failed",
+            last_error: inngestError instanceof Error ? inngestError.message : "Failed to dispatch send event.",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", result.run.id);
+      } catch {
+        // best-effort cleanup — ignore secondary errors
+      }
+      return {
+        run: null,
+        error: inngestError instanceof Error ? inngestError.message : "Failed to dispatch campaign send event.",
+      };
+    }
+
+    return { run: result.run, error: null };
   } catch (error) {
     return {
-      run: result.run,
-      error: error instanceof Error ? error.message : "Failed to dispatch campaign send event.",
+      run: null,
+      error: formatQueueSendError(
+        error instanceof Error ? error.message : "Failed to queue campaign send.",
+        options
+      ),
     };
   }
-
-  return { run: result.run, error: null };
 }
 
 export async function getFollowUpAudienceCount(
@@ -182,6 +224,30 @@ export async function getFollowUpAudiencePreview(
   if (!user) return { contacts: [], error: "Not authenticated" };
 
   return previewFollowUpAudience(user.id, campaignId, followUpSegment);
+}
+
+export async function getCampaignFollowUpAudienceSummary(
+  campaignId: string
+): Promise<{ summary: FollowUpAudienceSummary; error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      summary: {
+        failed: [],
+        opened: [],
+        clicked: [],
+        sent_all: [],
+        sent_unengaged: [],
+        pending: [],
+      },
+      error: "Not authenticated",
+    };
+  }
+
+  return getFollowUpAudienceSummary(user.id, campaignId);
 }
 
 export async function getLatestCampaignSendRun(campaignId: string): Promise<CampaignSendRun | null> {

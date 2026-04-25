@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import { getFollowUpAudienceCount } from "@/lib/supabase/sent-emails";
 import {
   followUpSegmentLabel,
   type FollowUpSegment,
 } from "@/lib/campaign-send/follow-up";
+import type { FollowUpAudienceSummary } from "@/lib/campaign-send/service";
 
 const FOLLOW_UP_SEGMENTS: Array<{
   value: FollowUpSegment;
@@ -60,70 +58,25 @@ const FOLLOW_UP_SEGMENTS: Array<{
 
 type Props = {
   campaignId: string;
+  initialSummary: FollowUpAudienceSummary;
   selectedSegment: FollowUpSegment | null;
   onPrepareSegment: (segment: FollowUpSegment) => void;
 };
 
 export default function FollowUpPanel({
-  campaignId,
+  campaignId: _campaignId,
+  initialSummary,
   selectedSegment,
   onPrepareSegment,
 }: Props) {
-  const [counts, setCounts] = useState<Record<FollowUpSegment, number>>({
-    failed: 0,
-    opened: 0,
-    clicked: 0,
-    sent_all: 0,
-    sent_unengaged: 0,
-    pending: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadCounts() {
-      setIsLoading(true);
-      setError("");
-
-      const results = await Promise.all(
-        FOLLOW_UP_SEGMENTS.map(async (segment) => ({
-          segment: segment.value,
-          result: await getFollowUpAudienceCount(campaignId, segment.value),
-        }))
-      );
-
-      if (cancelled) return;
-
-      const nextCounts: Record<FollowUpSegment, number> = {
-        failed: 0,
-        opened: 0,
-        clicked: 0,
-        sent_all: 0,
-        sent_unengaged: 0,
-        pending: 0,
-      };
-
-      let nextError = "";
-      for (const entry of results) {
-        if (entry.result.error && !nextError) {
-          nextError = entry.result.error;
-        }
-        nextCounts[entry.segment] = entry.result.count;
-      }
-
-      setCounts(nextCounts);
-      setError(nextError);
-      setIsLoading(false);
-    }
-
-    void loadCounts();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [campaignId]);
+  const counts: Record<FollowUpSegment, number> = {
+    failed: initialSummary.failed.length,
+    opened: initialSummary.opened.length,
+    clicked: initialSummary.clicked.length,
+    sent_all: initialSummary.sent_all.length,
+    sent_unengaged: initialSummary.sent_unengaged.length,
+    pending: initialSummary.pending.length,
+  };
 
   return (
     <section className="rk-fade-up rk-delay-2 mb-8">
@@ -180,19 +133,6 @@ export default function FollowUpPanel({
             </div>
           </div>
 
-          {error && (
-            <div
-              className="rounded-2xl px-4 py-3 text-xs"
-              style={{
-                background: "rgba(239,68,68,0.08)",
-                border: "1px solid rgba(239,68,68,0.2)",
-                color: "#f87171",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
           <div className="grid gap-3 lg:grid-cols-5 sm:grid-cols-2">
             {FOLLOW_UP_SEGMENTS.map((segment) => {
               const selected = selectedSegment === segment.value;
@@ -231,7 +171,7 @@ export default function FollowUpPanel({
                   </div>
 
                   <div className="mb-2 text-3xl font-semibold tabular-nums" style={{ color: "var(--wm-text)" }}>
-                    {isLoading ? "--" : count}
+                    {count}
                   </div>
 
                   <h3

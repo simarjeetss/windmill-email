@@ -74,6 +74,17 @@ export type CreateRunResult = {
   alreadyActive?: boolean;
 };
 
+function formatCreateRunError(message: string, runType: CampaignRunType): string {
+  if (
+    runType === "followup" &&
+    /(run_type|follow_up_segment|schema cache|column .* does not exist)/i.test(message)
+  ) {
+    return "Follow-up sends are not fully configured in the database yet. Apply the latest Supabase migration, then try again.";
+  }
+
+  return message;
+}
+
 export type FollowUpAudiencePreviewContact = {
   id: string;
   email: string;
@@ -83,6 +94,19 @@ export type FollowUpAudiencePreviewContact = {
   latest_status: LatestContactStatus;
   latest_activity_at: string;
 };
+
+export type FollowUpAudienceSummary = Record<FollowUpSegment, FollowUpAudiencePreviewContact[]>;
+
+function emptyFollowUpAudienceSummary(): FollowUpAudienceSummary {
+  return {
+    failed: [],
+    opened: [],
+    clicked: [],
+    sent_all: [],
+    sent_unengaged: [],
+    pending: [],
+  };
+}
 
 function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
@@ -200,24 +224,25 @@ export async function countFollowUpAudience(
   };
 }
 
-export async function previewFollowUpAudience(
+export async function getFollowUpAudienceSummary(
   userId: string,
-  campaignId: string,
-  segment: FollowUpSegment
-): Promise<{ contacts: FollowUpAudiencePreviewContact[]; error: string | null }> {
+  campaignId: string
+): Promise<{ summary: FollowUpAudienceSummary; error: string | null }> {
   const { data: audienceRows, error } = await listCampaignAudienceRows(userId, campaignId);
-  if (error) return { contacts: [], error };
+  if (error) return { summary: emptyFollowUpAudienceSummary(), error };
 
-  const latestRows = getLatestRowsByContact(audienceRows)
-    .filter((row) => matchesFollowUpSegment(row, segment))
-    .sort((a, b) => (b.sent_at ?? b.created_at).localeCompare(a.sent_at ?? a.created_at));
+  const latestRows = getLatestRowsByContact(audienceRows).sort((a, b) =>
+    (b.clicked_at ?? b.opened_at ?? b.sent_at ?? b.created_at).localeCompare(
+      a.clicked_at ?? a.opened_at ?? a.sent_at ?? a.created_at
+    )
+  );
 
   const contactIds = latestRows
     .map((row) => row.contact_id)
     .filter((contactId): contactId is string => Boolean(contactId));
 
   if (contactIds.length === 0) {
-    return { contacts: [], error: null };
+    return { summary: emptyFollowUpAudienceSummary(), error: null };
   }
 
   const supabase = createAdminClient();
@@ -228,7 +253,9 @@ export async function previewFollowUpAudience(
     .eq("campaign_id", campaignId)
     .in("id", contactIds);
 
-  if (contactsError) return { contacts: [], error: contactsError.message };
+  if (contactsError) {
+    return { summary: emptyFollowUpAudienceSummary(), error: contactsError.message };
+  }
 
   const contactsById = new Map(
     ((contactsData ?? []) as Array<Pick<ContactRow, "id" | "email" | "first_name" | "last_name" | "company">>).map(
@@ -236,25 +263,41 @@ export async function previewFollowUpAudience(
     )
   );
 
-  const contacts = latestRows
-    .map((row) => {
-      if (!row.contact_id) return null;
-      const contact = contactsById.get(row.contact_id);
-      if (!contact) return null;
+  const summary = emptyFollowUpAudienceSummary();
 
-      return {
-        id: contact.id,
-        email: contact.email,
-        first_name: contact.first_name,
-        last_name: contact.last_name,
-        company: contact.company,
-        latest_status: getLatestContactStatus(row),
-        latest_activity_at: row.clicked_at ?? row.opened_at ?? row.sent_at ?? row.created_at,
-      } satisfies FollowUpAudiencePreviewContact;
-    })
-    .filter((contact): contact is FollowUpAudiencePreviewContact => Boolean(contact));
+  for (const row of latestRows) {
+    if (!row.contact_id) continue;
+    const contact = contactsById.get(row.contact_id);
+    if (!contact) continue;
 
-  return { contacts, error: null };
+    const preview = {
+      id: contact.id,
+      email: contact.email,
+      first_name: contact.first_name,
+      last_name: contact.last_name,
+      company: contact.company,
+      latest_status: getLatestContactStatus(row),
+      latest_activity_at: row.clicked_at ?? row.opened_at ?? row.sent_at ?? row.created_at,
+    } satisfies FollowUpAudiencePreviewContact;
+
+    if (matchesFollowUpSegment(row, "failed")) summary.failed.push(preview);
+    if (matchesFollowUpSegment(row, "opened")) summary.opened.push(preview);
+    if (matchesFollowUpSegment(row, "clicked")) summary.clicked.push(preview);
+    if (matchesFollowUpSegment(row, "sent_all")) summary.sent_all.push(preview);
+    if (matchesFollowUpSegment(row, "sent_unengaged")) summary.sent_unengaged.push(preview);
+    if (matchesFollowUpSegment(row, "pending")) summary.pending.push(preview);
+  }
+
+  return { summary, error: null };
+}
+
+export async function previewFollowUpAudience(
+  userId: string,
+  campaignId: string,
+  segment: FollowUpSegment
+): Promise<{ contacts: FollowUpAudiencePreviewContact[]; error: string | null }> {
+  const { summary, error } = await getFollowUpAudienceSummary(userId, campaignId);
+  return { contacts: summary[segment], error };
 }
 
 async function recalcRunCounts(runId: string): Promise<{ sent: number; failed: number; pending: number }> {
@@ -354,7 +397,7 @@ export async function createCampaignSendRun(input: CreateRunInput): Promise<Crea
         .maybeSingle();
       return { run: (existing as CampaignSendRun | null) ?? null, error: "Campaign send already in progress.", alreadyActive: true };
     }
-    return { run: null, error: runInsertError.message };
+    return { run: null, error: formatCreateRunError(runInsertError.message, runType) };
   }
 
   const { error: rowsError } = await supabase.from("sent_emails").insert(

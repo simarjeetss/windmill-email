@@ -2,11 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { createTemplate } from "@/lib/supabase/email-templates";
-import {
-  enqueueCampaignSend,
-  getFollowUpAudienceCount,
-  getFollowUpAudiencePreview,
-} from "@/lib/supabase/sent-emails";
+import { enqueueCampaignSend } from "@/lib/supabase/sent-emails";
 import {
   followUpSegmentLabel,
   type LatestContactStatus,
@@ -32,6 +28,7 @@ import type { Contact } from "@/lib/supabase/campaigns";
 import type { UserProfile } from "@/lib/supabase/profile";
 import type {
   CampaignSendRun,
+  FollowUpAudienceSummary,
   FollowUpAudiencePreviewContact,
 } from "@/lib/campaign-send/service";
 import SenderProfileSheet from "@/components/campaigns/sender-profile-sheet";
@@ -173,6 +170,7 @@ export default function EmailComposer({
   campaignFiles,
   initialLatestRun,
   followUpIntent,
+  initialFollowUpAudienceSummary,
 }: {
   campaignId: string;
   campaignName: string;
@@ -183,6 +181,7 @@ export default function EmailComposer({
   campaignFiles: EmailAgentCampaignFileContext[];
   initialLatestRun: CampaignSendRun | null;
   followUpIntent: FollowUpIntent | null;
+  initialFollowUpAudienceSummary: FollowUpAudienceSummary;
 }) {
   const [subject,      setSubject]     = useState(initialTemplate?.subject ?? "");
   const [body,         setBody]        = useState(initialTemplate?.body    ?? "");
@@ -215,12 +214,10 @@ export default function EmailComposer({
   const [latestRun, setLatestRun] = useState<CampaignSendRun | null>(initialLatestRun);
   const [sendMode, setSendMode] = useState<"initial" | "followup">("initial");
   const [followUpSegment, setFollowUpSegment] = useState<FollowUpSegment>("failed");
-  const [followUpCount, setFollowUpCount] = useState<number | null>(null);
   const [followUpAudienceError, setFollowUpAudienceError] = useState("");
-  const [isLoadingFollowUpCount, setIsLoadingFollowUpCount] = useState(false);
   const [showFollowUpReview, setShowFollowUpReview] = useState(false);
-  const [followUpPreview, setFollowUpPreview] = useState<FollowUpAudiencePreviewContact[]>([]);
-  const [isLoadingFollowUpPreview, setIsLoadingFollowUpPreview] = useState(false);
+  const followUpPreview: FollowUpAudiencePreviewContact[] = initialFollowUpAudienceSummary[followUpSegment] ?? [];
+  const followUpCount = followUpPreview.length;
 
   /** Files linked to the current draft (saved template and/or staged uploads). */
   const [attachments, setAttachments] = useState<TemplateAttachment[]>([]);
@@ -238,41 +235,6 @@ export default function EmailComposer({
   }, [initialLatestRun]);
 
   useEffect(() => {
-    if (sendMode !== "followup") {
-      setFollowUpCount(null);
-      setFollowUpAudienceError("");
-      setIsLoadingFollowUpCount(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadFollowUpAudience() {
-      setIsLoadingFollowUpCount(true);
-      setFollowUpAudienceError("");
-
-      const result = await getFollowUpAudienceCount(campaignId, followUpSegment);
-      if (cancelled) return;
-
-      if (result.error) {
-        setFollowUpAudienceError(result.error);
-        setFollowUpCount(0);
-      } else {
-        setFollowUpAudienceError("");
-        setFollowUpCount(result.count);
-      }
-
-      setIsLoadingFollowUpCount(false);
-    }
-
-    void loadFollowUpAudience();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [campaignId, followUpSegment, sendMode]);
-
-  useEffect(() => {
     if (!followUpIntent) return;
 
     setSendMode("followup");
@@ -288,37 +250,6 @@ export default function EmailComposer({
       bodyRef.current?.focus();
     });
   }, [followUpIntent]);
-
-  useEffect(() => {
-    if (sendMode !== "followup" || !showFollowUpReview) {
-      setFollowUpPreview([]);
-      setIsLoadingFollowUpPreview(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadFollowUpPreview() {
-      setIsLoadingFollowUpPreview(true);
-      const result = await getFollowUpAudiencePreview(campaignId, followUpSegment);
-      if (cancelled) return;
-
-      if (result.error) {
-        setFollowUpAudienceError(result.error);
-        setFollowUpPreview([]);
-      } else {
-        setFollowUpPreview(result.contacts);
-      }
-
-      setIsLoadingFollowUpPreview(false);
-    }
-
-    void loadFollowUpPreview();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [campaignId, followUpSegment, sendMode, showFollowUpReview]);
 
   // Focus name input when modal opens
   useEffect(() => {
@@ -435,37 +366,42 @@ export default function EmailComposer({
         setSendError(followUpAudienceError);
         return;
       }
-      if (isLoadingFollowUpCount) {
-        setSendError("Checking the follow-up audience. Try again in a moment.");
-        return;
-      }
-      if ((followUpCount ?? 0) === 0) {
+      if (followUpCount === 0) {
         setSendError("No contacts match the selected follow-up segment.");
         return;
       }
     }
 
     startSend(async () => {
-      const result = await enqueueCampaignSend(
-        campaignId,
-        subject,
-        body,
-        attachments.map((a) => a.id),
-        sendMode === "followup"
-          ? { mode: "followup", followUpSegment }
-          : { mode: "initial" }
-      );
-      if (result.error) {
+      try {
+        const result = await enqueueCampaignSend(
+          campaignId,
+          subject,
+          body,
+          attachments.map((a) => a.id),
+          sendMode === "followup"
+            ? { mode: "followup", followUpSegment }
+            : { mode: "initial" }
+        );
+        if (result.error) {
+          setSendStatus("error");
+          setSendError(result.error);
+          return;
+        }
+        setSendStatus("queued");
+        if (result.run) {
+          setLatestRun(result.run);
+        }
+        setShowSendModal(false);
+        setShowFollowUpReview(false);
+      } catch (error) {
         setSendStatus("error");
-        setSendError(result.error);
-        return;
+        setSendError(
+          error instanceof Error
+            ? error.message
+            : "The request to queue this email failed before the server returned a response."
+        );
       }
-      setSendStatus("queued");
-      if (result.run) {
-        setLatestRun(result.run);
-      }
-      setShowSendModal(false);
-      setShowFollowUpReview(false);
     });
   }
 
@@ -1001,9 +937,7 @@ export default function EmailComposer({
 
                   <div className="flex items-center justify-between gap-2 text-[11px]" style={{ color: "var(--wm-text-muted)" }}>
                     <span>
-                      {isLoadingFollowUpCount
-                        ? "Checking matching contacts..."
-                        : `${followUpCount ?? 0} matching contact${followUpCount === 1 ? "" : "s"}`}
+                      {`${followUpCount} matching contact${followUpCount === 1 ? "" : "s"}`}
                     </span>
                     <span style={{ color: "var(--wm-text-sub)" }}>
                       based on each contact&apos;s latest campaign send
@@ -1025,7 +959,7 @@ export default function EmailComposer({
             <div className="text-xs" style={{ color: "var(--wm-text-muted)" }}>
               {sendMode === "followup" ? (
                 <>
-                  This follow-up will queue for <strong style={{ color: "var(--wm-text)" }}>{followUpCount ?? 0}</strong> contact{followUpCount === 1 ? "" : "s"} in <strong style={{ color: "var(--wm-text)" }}>{followUpSegmentLabel(followUpSegment)}</strong>.
+                  This follow-up will queue for <strong style={{ color: "var(--wm-text)" }}>{followUpCount}</strong> contact{followUpCount === 1 ? "" : "s"} in <strong style={{ color: "var(--wm-text)" }}>{followUpSegmentLabel(followUpSegment)}</strong>.
                 </>
               ) : (
                 <>
@@ -1072,14 +1006,14 @@ export default function EmailComposer({
               <button
                 onClick={handleConfirmSend}
                 aria-label="Confirm send now"
-                disabled={isSending || (sendMode === "followup" && isLoadingFollowUpCount)}
+                disabled={isSending}
                 className="px-4 py-2 rounded-xl text-xs font-semibold transition-all"
                 style={{
                   background: isSending ? "rgba(43,122,95,0.4)" : "var(--wm-accent)",
                   color: "var(--wm-accent-text)",
                   border: "none",
-                  cursor: isSending || (sendMode === "followup" && isLoadingFollowUpCount) ? "not-allowed" : "pointer",
-                  opacity: isSending || (sendMode === "followup" && isLoadingFollowUpCount) ? 0.7 : 1,
+                  cursor: isSending ? "not-allowed" : "pointer",
+                  opacity: isSending ? 0.7 : 1,
                 }}
               >
                 {isSending
@@ -1266,9 +1200,7 @@ export default function EmailComposer({
               {followUpSegmentLabel(followUpSegment)}
             </div>
             <div className="text-xs mt-1" style={{ color: "var(--wm-text-muted)" }}>
-              {isLoadingFollowUpCount
-                ? "Checking who matches this audience..."
-                : `${followUpCount ?? 0} matching contact${followUpCount === 1 ? "" : "s"} based on each contact's latest campaign send.`}
+              {`${followUpCount} matching contact${followUpCount === 1 ? "" : "s"} based on each contact's latest campaign send.`}
             </div>
           </div>
 
@@ -1322,9 +1254,7 @@ export default function EmailComposer({
                 {followUpSegmentLabel(followUpSegment)}
               </div>
               <div className="text-xs mt-1" style={{ color: "var(--wm-text-muted)" }}>
-                {isLoadingFollowUpPreview
-                  ? "Loading matching contacts..."
-                  : `${followUpPreview.length} contact${followUpPreview.length === 1 ? "" : "s"} will receive this follow-up.`}
+                {`${followUpPreview.length} contact${followUpPreview.length === 1 ? "" : "s"} will receive this follow-up.`}
               </div>
             </div>
 
@@ -1345,14 +1275,14 @@ export default function EmailComposer({
               <button
                 type="button"
                 onClick={handleConfirmSend}
-                disabled={isSending || isLoadingFollowUpCount || isLoadingFollowUpPreview}
+                disabled={isSending}
                 className="px-4 py-2 rounded-xl text-xs font-semibold transition-all"
                 style={{
                   background: isSending ? "rgba(43,122,95,0.4)" : "var(--wm-accent)",
                   color: "var(--wm-accent-text)",
                   border: "1px solid transparent",
-                  cursor: isSending || isLoadingFollowUpCount || isLoadingFollowUpPreview ? "not-allowed" : "pointer",
-                  opacity: isSending || isLoadingFollowUpCount || isLoadingFollowUpPreview ? 0.7 : 1,
+                  cursor: isSending ? "not-allowed" : "pointer",
+                  opacity: isSending ? 0.7 : 1,
                 }}
               >
                 {isSending ? "Queueing..." : "Queue follow-up"}
@@ -1376,11 +1306,7 @@ export default function EmailComposer({
             className="max-h-72 overflow-y-auto rounded-xl"
             style={{ border: "1px solid var(--wm-border)", background: "var(--wm-surface-2)" }}
           >
-            {isLoadingFollowUpPreview ? (
-              <div className="px-4 py-6 text-sm text-center" style={{ color: "var(--wm-text-sub)" }}>
-                Loading audience preview…
-              </div>
-            ) : followUpPreview.length === 0 ? (
+            {followUpPreview.length === 0 ? (
               <div className="px-4 py-6 text-sm text-center" style={{ color: "var(--wm-text-sub)" }}>
                 No contacts match this follow-up audience.
               </div>
