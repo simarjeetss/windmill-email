@@ -209,6 +209,53 @@ export async function addContact(
   return { error: null };
 }
 
+export type ContactUpdateInput = {
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  company?: string | null;
+};
+
+export async function updateContact(
+  contactId: string,
+  campaignId: string,
+  input: ContactUpdateInput
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const email = input.email?.trim().toLowerCase();
+  const first_name = input.first_name?.trim() || null;
+  const last_name = input.last_name?.trim() || null;
+  const company = input.company?.trim() || null;
+
+  if (!email) return { error: "Email is required." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Invalid email address." };
+  if (first_name && first_name.length > 100) return { error: "First name must be 100 characters or fewer." };
+  if (last_name && last_name.length > 100) return { error: "Last name must be 100 characters or fewer." };
+  if (company && company.length > 150) return { error: "Company must be 150 characters or fewer." };
+
+  const { error } = await supabase
+    .from("contacts")
+    .update({ email, first_name, last_name, company })
+    .eq("id", contactId)
+    .eq("campaign_id", campaignId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    if (error.code === "23505") return { error: "This email already exists in the campaign." };
+    return { error: error.message };
+  }
+
+  revalidatePath(`/dashboard/campaigns/${campaignId}`);
+  revalidatePath("/dashboard/contacts");
+  return { error: null };
+}
+
 export async function importContacts(
   campaignId: string,
   rows: { email: string; first_name?: string; last_name?: string; company?: string }[]

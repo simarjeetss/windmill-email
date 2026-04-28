@@ -25,8 +25,8 @@ interface VertexResponse {
 export async function vertexGenerateContent(prompt: string): Promise<string> {
   const apiKey   = process.env.VERTEX_API_KEY;
   const project  = process.env.VERTEX_PROJECT;
-  const location = process.env.VERTEX_LOCATION ?? "us-central1";
-  const model    = "gemini-2.5-flash";
+  const model    = process.env.VERTEX_MODEL ?? "gemini-3-flash-preview";
+  const location = process.env.VERTEX_LOCATION ?? (model.startsWith("gemini-3") ? "global" : "us-central1");
 
   if (!apiKey || !project)
     throw new Error("AI is not configured. Add VERTEX_API_KEY and VERTEX_PROJECT to your environment.");

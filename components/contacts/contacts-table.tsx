@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { deleteContact, bulkDeleteContacts } from "@/lib/supabase/campaigns";
+import { deleteContact, bulkDeleteContacts, updateContact } from "@/lib/supabase/campaigns";
 import type { ContactWithCampaign } from "@/lib/supabase/campaigns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -407,14 +407,160 @@ function ContactRow({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const [isPending, startTransition] = useTransition();
-  const fullName = [contact.first_name, contact.last_name].filter(Boolean).join(" ");
+  const [isDeleting, startDeleting] = useTransition();
+  const [isSaving, startSaving] = useTransition();
+  const [isEditing, setIsEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [current, setCurrent] = useState(contact);
+  const [draft, setDraft] = useState({
+    email: contact.email,
+    first_name: contact.first_name ?? "",
+    last_name: contact.last_name ?? "",
+    company: contact.company ?? "",
+  });
+
+  const isPending = isDeleting || isSaving;
+  const fullName = [current.first_name, current.last_name].filter(Boolean).join(" ");
+
+  function resetDraft() {
+    setDraft({
+      email: current.email,
+      first_name: current.first_name ?? "",
+      last_name: current.last_name ?? "",
+      company: current.company ?? "",
+    });
+  }
+
+  function beginEdit() {
+    resetDraft();
+    setError(null);
+    setIsEditing(true);
+  }
+
+  function cancelEdit() {
+    resetDraft();
+    setError(null);
+    setIsEditing(false);
+  }
+
+  function handleSave() {
+    startSaving(async () => {
+      const result = await updateContact(contact.id, contact.campaign_id, draft);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setCurrent((prev) => ({
+        ...prev,
+        email: draft.email.trim().toLowerCase(),
+        first_name: draft.first_name.trim() || null,
+        last_name: draft.last_name.trim() || null,
+        company: draft.company.trim() || null,
+      }));
+      setError(null);
+      setIsEditing(false);
+    });
+  }
 
   function handleDelete() {
-    if (!confirm(`Remove ${contact.email}?`)) return;
-    startTransition(async () => {
+    if (!confirm(`Remove ${current.email}?`)) return;
+    startDeleting(async () => {
       await deleteContact(contact.id, contact.campaign_id);
     });
+  }
+
+  if (isEditing) {
+    return (
+      <div
+        className="grid grid-cols-[auto_1.2fr_1fr_1fr_auto] gap-3 items-start px-4 py-3 text-sm"
+        style={{ color: "var(--wm-text)", opacity: isPending ? 0.55 : 1 }}
+      >
+        <label className="flex items-center justify-center pt-2">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            aria-label={`Select ${current.email}`}
+            disabled={isPending}
+          />
+        </label>
+
+        <div className="min-w-0 space-y-1.5">
+          <Input
+            value={draft.email}
+            onChange={(e) => setDraft((prev) => ({ ...prev, email: e.target.value }))}
+            className="h-7 text-xs"
+            aria-label={`Email for ${current.email}`}
+            disabled={isPending}
+          />
+          <div className="grid grid-cols-2 gap-1.5">
+            <Input
+              value={draft.first_name}
+              onChange={(e) => setDraft((prev) => ({ ...prev, first_name: e.target.value }))}
+              className="h-7 text-xs"
+              aria-label={`First name for ${current.email}`}
+              placeholder="First"
+              disabled={isPending}
+            />
+            <Input
+              value={draft.last_name}
+              onChange={(e) => setDraft((prev) => ({ ...prev, last_name: e.target.value }))}
+              className="h-7 text-xs"
+              aria-label={`Last name for ${current.email}`}
+              placeholder="Last"
+              disabled={isPending}
+            />
+          </div>
+          {error && (
+            <p className="text-[11px]" style={{ color: "#f87171" }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <Input
+            value={draft.company}
+            onChange={(e) => setDraft((prev) => ({ ...prev, company: e.target.value }))}
+            className="h-7 text-xs"
+            aria-label={`Company for ${current.email}`}
+            placeholder="Company"
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="truncate text-xs pt-1" style={{ color: "var(--wm-text-muted)" }}>
+          {contact.campaign_name ? (
+            <Link href={`/dashboard/campaigns/${contact.campaign_id}`} className="hover:underline">
+              {contact.campaign_name}
+            </Link>
+          ) : (
+            "Unknown campaign"
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 pt-0.5">
+          <Button
+            size="xs"
+            variant="secondary"
+            onClick={handleSave}
+            disabled={isPending}
+            aria-label={`Save ${current.email}`}
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </Button>
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={cancelEdit}
+            disabled={isPending}
+            aria-label={`Cancel editing ${current.email}`}
+          >
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -427,12 +573,12 @@ function ContactRow({
           type="checkbox"
           checked={selected}
           onChange={onToggle}
-          aria-label={`Select ${contact.email}`}
+          aria-label={`Select ${current.email}`}
         />
       </label>
       <div className="min-w-0">
         <div className="truncate" style={{ color: "var(--wm-text)" }}>
-          {contact.email}
+          {current.email}
         </div>
         {fullName && (
           <div className="text-xs truncate" style={{ color: "var(--wm-text-muted)" }}>
@@ -442,7 +588,7 @@ function ContactRow({
       </div>
 
       <div className="truncate text-xs" style={{ color: "var(--wm-text-muted)" }}>
-        {contact.company || "—"}
+        {current.company || "—"}
       </div>
 
       <div className="truncate text-xs" style={{ color: "var(--wm-text-muted)" }}>
@@ -464,22 +610,38 @@ function ContactRow({
         )}
       </div>
 
-      <Button
-        size="icon-xs"
-        variant="ghost"
-        onClick={handleDelete}
-        disabled={isPending}
-        aria-label={`Delete ${contact.email}`}
-        style={{ color: "var(--wm-text-sub)" }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6 18 20a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-          <path d="M10 11v6" />
-          <path d="M14 11v6" />
-          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-        </svg>
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          onClick={beginEdit}
+          disabled={isPending}
+          aria-label={`Edit ${current.email}`}
+          style={{ color: "var(--wm-text-sub)" }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </Button>
+
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          onClick={handleDelete}
+          disabled={isPending}
+          aria-label={`Delete ${current.email}`}
+          style={{ color: "var(--wm-text-sub)" }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6 18 20a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+          </svg>
+        </Button>
+      </div>
     </div>
   );
 }

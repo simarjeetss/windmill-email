@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { deleteContact } from "@/lib/supabase/campaigns";
+import { deleteContact, updateContact } from "@/lib/supabase/campaigns";
 import type { Contact } from "@/lib/supabase/campaigns";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100] as const;
@@ -249,12 +249,154 @@ function PagBtn({
 // ── Contact row ───────────────────────────────────────────────────────────────
 
 function ContactRow({ contact: c, campaignId }: { contact: Contact; campaignId: string }) {
-  const [isPending, startTransition] = useTransition();
-  const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ");
+  const [isDeleting, startDeleting] = useTransition();
+  const [isSaving, startSaving] = useTransition();
+  const [isEditing, setIsEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [current, setCurrent] = useState(c);
+  const [draft, setDraft] = useState({
+    email: c.email,
+    first_name: c.first_name ?? "",
+    last_name: c.last_name ?? "",
+    company: c.company ?? "",
+  });
+
+  const isPending = isDeleting || isSaving;
+  const fullName = [current.first_name, current.last_name].filter(Boolean).join(" ");
+
+  function resetDraft() {
+    setDraft({
+      email: current.email,
+      first_name: current.first_name ?? "",
+      last_name: current.last_name ?? "",
+      company: current.company ?? "",
+    });
+  }
+
+  function beginEdit() {
+    resetDraft();
+    setError(null);
+    setIsEditing(true);
+  }
+
+  function cancelEdit() {
+    resetDraft();
+    setError(null);
+    setIsEditing(false);
+  }
+
+  function handleSave() {
+    startSaving(async () => {
+      const result = await updateContact(c.id, campaignId, draft);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setCurrent((prev) => ({
+        ...prev,
+        email: draft.email.trim().toLowerCase(),
+        first_name: draft.first_name.trim() || null,
+        last_name: draft.last_name.trim() || null,
+        company: draft.company.trim() || null,
+      }));
+      setError(null);
+      setIsEditing(false);
+    });
+  }
 
   function handleDelete() {
-    if (!confirm(`Remove ${c.email}?`)) return;
-    startTransition(async () => { await deleteContact(c.id, campaignId); });
+    if (!confirm(`Remove ${current.email}?`)) return;
+    startDeleting(async () => {
+      await deleteContact(c.id, campaignId);
+    });
+  }
+
+  if (isEditing) {
+    return (
+      <div
+        className="grid grid-cols-[1fr_1fr_auto] gap-3 items-start px-4 py-3 text-sm transition-colors"
+        style={{ opacity: isPending ? 0.55 : 1 }}
+      >
+        <div className="min-w-0 space-y-1.5">
+          <input
+            value={draft.email}
+            onChange={(e) => setDraft((prev) => ({ ...prev, email: e.target.value }))}
+            className="rk-auth-input"
+            style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem", fontSize: "0.75rem" }}
+            aria-label={`Email for ${current.email}`}
+            disabled={isPending}
+          />
+          <div className="grid grid-cols-2 gap-1.5">
+            <input
+              value={draft.first_name}
+              onChange={(e) => setDraft((prev) => ({ ...prev, first_name: e.target.value }))}
+              className="rk-auth-input"
+              style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem", fontSize: "0.75rem" }}
+              aria-label={`First name for ${current.email}`}
+              placeholder="First"
+              disabled={isPending}
+            />
+            <input
+              value={draft.last_name}
+              onChange={(e) => setDraft((prev) => ({ ...prev, last_name: e.target.value }))}
+              className="rk-auth-input"
+              style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem", fontSize: "0.75rem" }}
+              aria-label={`Last name for ${current.email}`}
+              placeholder="Last"
+              disabled={isPending}
+            />
+          </div>
+          {error && (
+            <p className="text-[11px]" style={{ color: "#f87171" }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <input
+            value={draft.company}
+            onChange={(e) => setDraft((prev) => ({ ...prev, company: e.target.value }))}
+            className="rk-auth-input"
+            style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem", fontSize: "0.75rem" }}
+            aria-label={`Company for ${current.email}`}
+            placeholder="Company"
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="flex items-center gap-1 pt-0.5">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="px-2 py-1 rounded-md text-[11px] transition-colors"
+            style={{
+              background: "rgba(43,122,95,0.12)",
+              color: "var(--wm-accent)",
+              border: "1px solid rgba(43,122,95,0.25)",
+              cursor: "pointer",
+            }}
+            aria-label={`Save ${current.email}`}
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </button>
+          <button
+            onClick={cancelEdit}
+            disabled={isPending}
+            className="px-2 py-1 rounded-md text-[11px] transition-colors"
+            style={{
+              background: "transparent",
+              color: "var(--wm-text-sub)",
+              border: "1px solid var(--wm-border)",
+              cursor: "pointer",
+            }}
+            aria-label={`Cancel editing ${current.email}`}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -263,29 +405,44 @@ function ContactRow({ contact: c, campaignId }: { contact: Contact; campaignId: 
       style={{ opacity: isPending ? 0.4 : 1 }}
     >
       <div className="min-w-0">
-        <div className="text-xs truncate" style={{ color: "var(--wm-text)" }}>{c.email}</div>
+        <div className="text-xs truncate" style={{ color: "var(--wm-text)" }}>{current.email}</div>
         {fullName && (
           <div className="text-[11px] truncate mt-0.5" style={{ color: "var(--wm-text-muted)" }}>{fullName}</div>
         )}
       </div>
       <div className="text-xs truncate" style={{ color: "var(--wm-text-muted)" }}>
-        {c.company ?? <span style={{ color: "var(--wm-text-sub)" }}>—</span>}
+        {current.company ?? <span style={{ color: "var(--wm-text-sub)" }}>—</span>}
       </div>
-      <button
-        onClick={handleDelete}
-        disabled={isPending}
-        className="p-1.5 rounded-md transition-colors"
-        style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--wm-text-sub)" }}
-        title="Remove contact"
-        aria-label="Remove contact"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6l-1 14H6L5 6" />
-          <path d="M10 11v6" /><path d="M14 11v6" />
-          <path d="M9 6V4h6v2" />
-        </svg>
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={beginEdit}
+          disabled={isPending}
+          className="p-1.5 rounded-md transition-colors"
+          style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--wm-text-sub)" }}
+          title="Edit contact"
+          aria-label="Edit contact"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={isPending}
+          className="p-1.5 rounded-md transition-colors"
+          style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--wm-text-sub)" }}
+          title="Remove contact"
+          aria-label="Remove contact"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6" /><path d="M14 11v6" />
+            <path d="M9 6V4h6v2" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

@@ -17,7 +17,6 @@ import {
   Type,
   createUserContent,
   type GenerateContentResponse,
-  type Schema,
 } from "@google/genai";
 
 import { checkAndIncrementAiUsage } from "@/lib/supabase/ai-usage";
@@ -31,7 +30,7 @@ import type {
 } from "./email-agent.types";
 
 const APP_NAME = "windmill-email-email-agent";
-const DEFAULT_MODEL = process.env.GOOGLE_GENAI_MODEL ?? "gemini-2.5-flash";
+const DEFAULT_MODEL = process.env.GOOGLE_GENAI_MODEL ?? "gemini-3-flash-preview";
 const MAX_FILE_URLS = Number.parseInt(
   process.env.EMAIL_AGENT_MAX_FILE_URLS ?? "3",
   10
@@ -41,6 +40,15 @@ const TOOL_TIMEOUT_MS = Number.parseInt(
   10
 );
 const SEARCH_QUERY_LIMIT = 180;
+
+function defaultVertexLocationForModel(model: string) {
+  // Gemini 3 family models on Vertex are commonly exposed in global first.
+  if (model.startsWith("gemini-3")) {
+    return "global";
+  }
+
+  return "us-central1";
+}
 
 type ModelRuntimeConfig = {
   model: string;
@@ -73,7 +81,8 @@ function isTruthyEnv(value: string | undefined) {
 function getModelRuntimeConfig(): ModelRuntimeConfig {
   const useVertex = isTruthyEnv(process.env.GOOGLE_GENAI_USE_VERTEXAI);
   const project = process.env.GOOGLE_CLOUD_PROJECT;
-  const location = process.env.GOOGLE_CLOUD_LOCATION ?? "us-central1";
+  const location =
+    process.env.GOOGLE_CLOUD_LOCATION ?? defaultVertexLocationForModel(DEFAULT_MODEL);
   const apiKey =
     process.env.GOOGLE_GENAI_API_KEY ?? process.env.GEMINI_API_KEY ?? undefined;
 
@@ -122,23 +131,91 @@ function stripCodeFences(value: string) {
   return value.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 }
 
-function extractJsonObject(value: string) {
+function extractJsonObjects(value: string) {
   const clean = stripCodeFences(value);
-  const firstBrace = clean.indexOf("{");
-  const lastBrace = clean.lastIndexOf("}");
 
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return clean.slice(firstBrace, lastBrace + 1);
+  const jsonObjects: string[] = [];
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let index = 0; index < clean.length; index += 1) {
+    const char = clean[index];
+
+    if (start === -1) {
+      if (char === "{") {
+        start = index;
+        depth = 1;
+        inString = false;
+        escape = false;
+      }
+      continue;
+    }
+
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escape = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        jsonObjects.push(clean.slice(start, index + 1));
+        start = -1;
+      }
+    }
   }
 
-  return clean;
+  return jsonObjects;
+}
+
+function parseLastJsonRecord(value: string): Record<string, unknown> {
+  const parsedCandidates = extractJsonObjects(value);
+  const parseQueue =
+    parsedCandidates.length > 0 ? parsedCandidates : [stripCodeFences(value)];
+
+  for (let index = parseQueue.length - 1; index >= 0; index -= 1) {
+    try {
+      const candidate = JSON.parse(parseQueue[index]) as Record<string, unknown>;
+      if (candidate && typeof candidate === "object") {
+        return candidate;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error("AI returned malformed JSON.");
 }
 
 function parseAgentResult(
   request: EmailAgentRequest,
   rawText: string
 ): EmailAgentFinalResult {
-  const parsed = JSON.parse(extractJsonObject(rawText)) as Record<string, unknown>;
+  const parsed = parseLastJsonRecord(rawText);
 
   const body = typeof parsed.body === "string" ? parsed.body.trim() : "";
   const subject =
@@ -263,28 +340,6 @@ async function prepareCampaignFiles(files: EmailAgentCampaignFileContext[] = [])
   return prepared;
 }
 
-function createResponseSchema(request: EmailAgentRequest): Schema {
-  if (request.mode === "generate" || request.writerMode === "prompt") {
-    return {
-      type: Type.OBJECT,
-      properties: {
-        subject: { type: Type.STRING },
-        body: { type: Type.STRING },
-      },
-      required: ["subject", "body"],
-    };
-  }
-
-  return {
-    type: Type.OBJECT,
-    properties: {
-      body: { type: Type.STRING },
-      subject: { type: Type.STRING },
-    },
-    required: ["body"],
-  };
-}
-
 async function readResponseText(response: GenerateContentResponse) {
   try {
     return response.text?.trim() ?? "";
@@ -316,7 +371,6 @@ async function runGroundedSearch(
     ],
     config: {
       temperature: 0.1,
-      responseMimeType: "application/json",
       toolConfig: {
         includeServerSideToolInvocations: true,
       },
@@ -325,7 +379,7 @@ async function runGroundedSearch(
   });
 
   const raw = await readResponseText(response);
-  const parsed = JSON.parse(extractJsonObject(raw)) as {
+  const parsed = parseLastJsonRecord(raw) as {
     summary?: string;
     sources?: string[];
   };
@@ -364,7 +418,6 @@ async function runUrlContextResearch(
     ],
     config: {
       temperature: 0.1,
-      responseMimeType: "application/json",
       toolConfig: {
         includeServerSideToolInvocations: true,
       },
@@ -373,7 +426,7 @@ async function runUrlContextResearch(
   });
 
   const raw = await readResponseText(response);
-  const parsed = JSON.parse(extractJsonObject(raw)) as { summary?: string };
+  const parsed = parseLastJsonRecord(raw) as { summary?: string };
 
   return {
     summary: parsed.summary?.trim() ?? "",
@@ -546,7 +599,7 @@ function createResearchTools(
   return [googleSearchTool, urlContextTool];
 }
 
-function createAgent(request: EmailAgentRequest, files: PreparedFileContext[]) {
+function createAgent(files: PreparedFileContext[]) {
   const runtime = getModelRuntimeConfig();
   const tools = createResearchTools(runtime, files);
 
@@ -555,16 +608,27 @@ function createAgent(request: EmailAgentRequest, files: PreparedFileContext[]) {
       name: "email_agent",
       model: new Gemini(runtime.geminiParams),
       instruction: [
-        "You are a cold email drafting agent.",
+        "You are the outbound email strategist and copywriter for WinSun Green (WinSun).",
+        "Primary mission: write high-converting B2B outreach emails for bulk campaigns while keeping every message personalized and trustworthy.",
+        "Company context to ground messaging: WinSun Green is a renewable energy solutions provider in India, with strong experience in wind energy, and offers O&M/OMS and EPC turnkey project support.",
+        "Operational context you can reference when relevant: project planning, technical consultancy, project execution, maintenance services, and end-to-end support for renewable projects.",
+        "Business focus from user context: WinSun Green also buys and sells wind energy assets.",
+        "Campaign objective: open conversations with relevant decision-makers, qualify fit, and move prospects toward a clear next step (reply, meeting, or call).",
+        "For bulk outreach, maintain a consistent strategy but vary wording naturally so emails do not feel templated.",
+        "Personalization rules: anchor each email to recipient role, company context, and likely business pain points when available.",
+        "Value proposition rules: emphasize practical outcomes such as reliability, execution capability, project support quality, and long-term partnership value.",
+        "Credibility rules: only use facts present in provided context, approved tools, or user input.",
+        "Never invent company metrics, project history, customer names, pricing, guarantees, certifications, or claims that were not provided.",
         "Use tools only when they materially improve factual specificity or campaign context.",
-        "Never invent factual claims, citations, or file contents.",
         "Never reveal raw signed URLs, internal tool names, or tool traces in the final answer.",
-        "Keep the email concise, specific, and natural.",
+        "Compliance rules: avoid spammy language, exaggerated promises, manipulative urgency, and unsupported ROI guarantees.",
+        "Tone rules: professional, clear, confident, and human; concise enough for busy business readers.",
+        "Structure rules: strong hook, clear value, concrete relevance, and one specific CTA.",
+        "Do not include signatures or sign-offs in the generated body.",
+        "Return only the requested JSON shape from the user prompt. Do not add markdown, commentary, or extra keys.",
       ].join(" "),
       generateContentConfig: {
         temperature: 0.5,
-        responseMimeType: "application/json",
-        responseSchema: createResponseSchema(request),
       },
       tools,
     }),
@@ -595,7 +659,7 @@ async function runAgent(
   await enforceAiLimit();
 
   const files = await prepareCampaignFiles(request.campaignFiles);
-  const { agent } = createAgent(request, files);
+  const { agent } = createAgent(files);
   const runner = new Runner({
     appName: APP_NAME,
     agent,
