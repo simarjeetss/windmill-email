@@ -2,8 +2,10 @@ import Link from "next/link";
 import { getAnalyticsOverview } from "@/lib/supabase/analytics";
 import { createClient } from "@/lib/supabase/server";
 import {
+  buildEngagementDisplayFromEvents,
   buildTimeline,
   calculateCampaignStats,
+  rateDenominator,
   type EventStatsBundle,
   summarizeContacts,
   type SentEmailRow,
@@ -31,13 +33,13 @@ import {
 
 const KPI_DESCRIPTIONS: Record<string, string> = {
   sent: "Total emails sent in the selected window.",
-  delivered: "Unique deliveries to recipient mail servers (Resend webhook).",
+  delivered: "Unique deliveries observed from delivery events, with a conservative floor from open/click signals.",
   opened: "Estimated unique opens based on provider tracking (not a guaranteed human read).",
   openedRaw: "Unique opens including suspected proxy/prefetch opens.",
   clicked: "Unique link clicks tracked per email.",
-  openRate: "Estimated opens divided by delivered (or sent if delivery not yet recorded).",
-  openRateRaw: "Raw opens divided by delivered (or sent).",
-  clickRate: "Unique clicks divided by delivered (or sent).",
+  openRate: "Estimated opens divided by delivered when delivery outcomes are complete; otherwise divided by sent.",
+  openRateRaw: "Raw opens divided by delivered when delivery outcomes are complete; otherwise divided by sent.",
+  clickRate: "Unique clicks divided by delivered when delivery outcomes are complete; otherwise divided by sent.",
   clickToOpenRate: "Unique clicks divided by estimated unique opens.",
 };
 
@@ -59,6 +61,7 @@ type EmailEventRow = {
   sent_email_id: string | null;
   campaign_id: string | null;
   event_type: string;
+  occurred_at: string;
   is_suspected_bot: boolean;
 };
 
@@ -116,20 +119,62 @@ export default async function AnalyticsPage({
 
   const rowsForEngagement = filteredRows as SentEmailRow[];
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const allRowIds = rows.map((row) => row.id);
   const { data: eventRows } =
     allRowIds.length > 0
       ? await supabase
           .from("email_events")
-          .select("sent_email_id, campaign_id, event_type, is_suspected_bot")
-          .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+          .select("sent_email_id, campaign_id, event_type, occurred_at, is_suspected_bot")
+          .eq("user_id", user?.id ?? "")
           .in("sent_email_id", allRowIds)
       : { data: [] as EmailEventRow[] };
   const allEvents = (eventRows ?? []) as EmailEventRow[];
 
-  const stats = calculateCampaignStats(rowsForEngagement, cohortEventStats(filteredRows, allEvents));
-  const timeline = buildTimeline(filteredRows as SentEmailRow[], rangeDays);
-  const contacts = summarizeContacts(rowsForEngagement);
+  const eventsBySentEmailId = new Map<string, EmailEventRow[]>();
+  for (const event of allEvents) {
+    const sentEmailId = event.sent_email_id;
+    if (!sentEmailId) continue;
+    const existing = eventsBySentEmailId.get(sentEmailId);
+    if (existing) {
+      existing.push(event);
+    } else {
+      eventsBySentEmailId.set(sentEmailId, [event]);
+    }
+  }
+
+  const rowsForDisplay: SentEmailRow[] = rowsForEngagement.map((row) => {
+    const display = buildEngagementDisplayFromEvents(row, eventsBySentEmailId.get(row.id));
+    return {
+      ...row,
+      opened_at: display.opened_at_display,
+      clicked_at: display.clicked_at_display,
+    };
+  });
+
+  const filteredRowIds = new Set(filteredRows.map((row) => row.id));
+  const filteredEvents = allEvents.filter((event) => {
+    const sentEmailId = event.sent_email_id;
+    return Boolean(sentEmailId && filteredRowIds.has(sentEmailId));
+  });
+  const displayRowsById = new Map(rowsForDisplay.map((row) => [row.id, row]));
+
+  const eventStatsForScope = cohortEventStats(filteredRows, allEvents);
+  const stats = calculateCampaignStats(rowsForEngagement, eventStatsForScope);
+  const legacyDelivered = rowsForEngagement.filter((row) => Boolean(row.delivered_at)).length;
+  const explicitDelivered = Math.max(eventStatsForScope.delivered_unique, legacyDelivered);
+  const rateBase = rateDenominator(stats.sent, explicitDelivered, stats.failed);
+  const rateBaseLabel = rateBase === explicitDelivered && explicitDelivered > 0 ? "delivered" : "sent";
+  const deliveryCoverage =
+    stats.sent > 0
+      ? Math.min(100, Math.round(((explicitDelivered + stats.failed) / stats.sent) * 100))
+      : 0;
+  const openNoise = Math.max(0, stats.openedRaw - stats.opened);
+
+  const timeline = buildTimeline(rowsForDisplay, rangeDays, filteredEvents);
+  const contacts = summarizeContacts(rowsForDisplay);
 
   const emailLogEntries: EmailLogEntry[] = filteredRows.map((row) => {
     const contact = row.contacts as { email?: string | null; first_name?: string | null; last_name?: string | null; company?: string | null } | null;
@@ -145,8 +190,8 @@ export default async function AnalyticsPage({
       campaignName: campaign?.name ?? null,
       status: row.status ?? "pending",
       sentAt: row.sent_at,
-      openedAt: row.opened_at,
-      clickedAt: row.clicked_at,
+      openedAt: displayRowsById.get(row.id)?.opened_at ?? row.opened_at,
+      clickedAt: displayRowsById.get(row.id)?.clicked_at ?? row.clicked_at,
     };
   });
 
@@ -212,7 +257,7 @@ export default async function AnalyticsPage({
             Analytics
           </h1>
           <p className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
-            Track sends, estimated opens, and clicks by campaign.
+            Track sends and estimated opens by campaign.
           </p>
         </div>
         <AnalyticsRangeSelector
@@ -322,46 +367,173 @@ export default async function AnalyticsPage({
         </div>
       </div>
 
-      <div className="rk-fade-up rk-delay-2 grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        {[
-          { key: "sent", label: "Sent", value: stats.sent },
-          { key: "delivered", label: "Delivered", value: stats.delivered },
-          { key: "opened", label: "Opens (est.)", value: stats.opened },
-          { key: "openedRaw", label: "Opens (raw)", value: stats.openedRaw },
-          { key: "clicked", label: "Clicks", value: stats.clicked },
-          { key: "openRate", label: "Open rate (est.)", value: formatPercent(stats.openRate) },
-          { key: "openRateRaw", label: "Open rate (raw)", value: formatPercent(stats.openRateRaw) },
-          { key: "clickRate", label: "Click rate", value: formatPercent(stats.clickRate) },
-          { key: "clickToOpenRate", label: "CTOR", value: formatPercent(stats.clickToOpenRate) },
-        ].map((card) => (
-          <Card key={card.key} size="sm">
-            <CardHeader className="flex flex-row items-start justify-between">
-              <div>
-                <CardTitle className="text-sm" style={{ color: "var(--wm-text-muted)" }}>
-                  {card.label}
-                </CardTitle>
+      <div className="rk-fade-up rk-delay-2 grid gap-4 mb-8">
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>KPI snapshot</CardTitle>
+            <CardDescription>
+              Primary counts first. Rates below always show their exact calculation base.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  key: "sent",
+                  label: "Sent",
+                  value: stats.sent,
+                  hint: "Total emails attempted in this window.",
+                },
+                {
+                  key: "delivered",
+                  label: "Delivered",
+                  value: stats.delivered,
+                  hint:
+                    stats.sent > 0
+                      ? `${Math.round((stats.delivered / stats.sent) * 100)}% of sent`
+                      : "No sends in selected range.",
+                },
+                {
+                  key: "opened",
+                  label: "Opens (est.)",
+                  value: stats.opened,
+                  hint:
+                    stats.sent > 0
+                      ? `${Math.round((stats.opened / stats.sent) * 100)}% of sent`
+                      : "No sends in selected range.",
+                },
+              ].map((metric) => (
                 <div
-                  className="text-2xl font-semibold mt-1"
-                  style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
+                  key={metric.key}
+                  className="rounded-xl p-4"
+                  style={{
+                    background: "var(--wm-surface-2)",
+                    border: "1px solid var(--wm-border)",
+                  }}
                 >
-                  {card.value}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider" style={{ color: "var(--wm-text-sub)" }}>
+                        {metric.label}
+                      </div>
+                      <div
+                        className="text-3xl font-semibold mt-1"
+                        style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
+                      >
+                        {metric.value}
+                      </div>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label={`${metric.label} info`}
+                          className="h-7 w-7 rounded-full flex items-center justify-center"
+                          style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
+                        >
+                          <span className="text-[11px]" style={{ color: "var(--wm-text-muted)" }}>i</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{KPI_DESCRIPTIONS[metric.key]}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <div className="mt-2 text-[11px]" style={{ color: "var(--wm-text-muted)" }}>
+                    {metric.hint}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-[11px]" style={{ color: "var(--wm-text-muted)" }}>
+                <span>Delivery coverage (explicit delivered + failed)</span>
+                <span>{stats.sent > 0 ? `${deliveryCoverage}%` : "—"}</span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--wm-border)" }}>
+                <div
+                  className="h-full"
+                  style={{
+                    width: stats.sent > 0 ? `${deliveryCoverage}%` : "0%",
+                    background: "linear-gradient(90deg, var(--wm-accent), #3b82f6)",
+                  }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Rate breakdown</CardTitle>
+            <CardDescription>
+              Rates are shown with numerator and denominator so each percentage is explainable.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            {[
+              {
+                key: "openRate",
+                label: "Open rate (est.)",
+                value: formatPercent(stats.openRate),
+                formula:
+                  rateBase > 0
+                    ? `${stats.opened} / ${rateBase} ${rateBaseLabel}`
+                    : "No denominator in selected range",
+                description: KPI_DESCRIPTIONS.openRate,
+              },
+              {
+                key: "openRateRaw",
+                label: "Open rate (raw)",
+                value: formatPercent(stats.openRateRaw),
+                formula:
+                  rateBase > 0
+                    ? `${stats.openedRaw} / ${rateBase} ${rateBaseLabel}`
+                    : "No denominator in selected range",
+                description:
+                  openNoise > 0
+                    ? `${KPI_DESCRIPTIONS.openRateRaw} (+${openNoise} proxy/prefetch opens vs est.)`
+                    : KPI_DESCRIPTIONS.openRateRaw,
+              },
+            ].map((rate) => (
+              <div
+                key={rate.key}
+                className="rounded-xl p-4"
+                style={{
+                  border: "1px solid var(--wm-border)",
+                  background: "var(--wm-surface-2)",
+                }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-medium" style={{ color: "var(--wm-text-muted)" }}>
+                      {rate.label}
+                    </div>
+                    <div
+                      className="text-2xl font-semibold mt-1"
+                      style={{ fontFamily: "var(--font-display)", color: "var(--wm-text)" }}
+                    >
+                      {rate.value}
+                    </div>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger
+                        aria-label={`${rate.label} info`}
+                        className="h-7 w-7 rounded-full flex items-center justify-center"
+                        style={{ background: "var(--wm-surface)", border: "1px solid var(--wm-border)" }}
+                      >
+                        <span className="text-[11px]" style={{ color: "var(--wm-text-muted)" }}>i</span>
+                      </TooltipTrigger>
+                      <TooltipContent>{rate.description}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="mt-2 text-[11px]" style={{ color: "var(--wm-text-muted)" }}>
+                  {rate.formula}
                 </div>
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger
-                    aria-label={`${card.label} info`}
-                    className="h-8 w-8 rounded-full flex items-center justify-center"
-                    style={{ background: "var(--wm-surface-2)" }}
-                  >
-                    <span className="text-[11px]" style={{ color: "var(--wm-text-muted)" }}>i</span>
-                  </TooltipTrigger>
-                  <TooltipContent>{KPI_DESCRIPTIONS[card.key]}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </CardHeader>
-          </Card>
-        ))}
+            ))}
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="rk-fade-up rk-delay-3" size="sm">
@@ -371,85 +543,89 @@ export default async function AnalyticsPage({
             Per-contact delivery status for the selected campaign. Opened counts are estimates from
             tracking events and may include provider/client-side noise.
           </CardDescription>
+          <p className="text-[11px]" style={{ color: "var(--wm-text-sub)" }}>
+            Tip: this table is scrollable. For full per-email history, see <strong>Email log</strong>
+            below.
+          </p>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left" style={{ color: "var(--wm-text-muted)" }}>
-                  <th className="pb-2">Contact</th>
-                  <th className="pb-2">Company</th>
-                  <th className="pb-2">Sent</th>
-                  <th className="pb-2">Opened (est.)</th>
-                  <th className="pb-2">Clicked</th>
-                  <th className="pb-2">Last activity</th>
-                  <th className="pb-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-4" style={{ color: "var(--wm-text-muted)" }}>
-                      No engagement yet. Send a campaign to populate this table.
-                    </td>
+          <div className="rounded-lg" style={{ border: "1px solid var(--wm-border)" }}>
+            <div className="max-h-[420px] overflow-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left" style={{ color: "var(--wm-text-muted)" }}>
+                    <th className="pb-2 pt-2 pl-3">Contact</th>
+                    <th className="pb-2 pt-2">Company</th>
+                    <th className="pb-2 pt-2">Sent</th>
+                    <th className="pb-2 pt-2">Opened (est.)</th>
+                    <th className="pb-2 pt-2">Last activity</th>
+                    <th className="pb-2 pt-2 pr-3">Status</th>
                   </tr>
-                ) : (
-                  contacts.map((contact) => (
-                    <tr
-                      key={contact.contact_id}
-                      style={{ borderTop: "1px solid var(--wm-border)" }}
-                    >
-                      <td className="py-3">
-                        <div className="font-medium" style={{ color: "var(--wm-text)" }}>
-                          {contact.name}
-                        </div>
-                        <div className="text-[11px]" style={{ color: "var(--wm-text-muted)" }}>
-                          {contact.email}
-                        </div>
-                      </td>
-                      <td className="py-3" style={{ color: "var(--wm-text-muted)" }}>
-                        {contact.company ?? "—"}
-                      </td>
-                      <td className="py-3" style={{ color: "var(--wm-text)" }}>{contact.sent}</td>
-                      <td className="py-3" style={{ color: "var(--wm-text)" }}>{contact.opened}</td>
-                      <td className="py-3" style={{ color: "var(--wm-text)" }}>{contact.clicked}</td>
-                      <td className="py-3" style={{ color: "var(--wm-text-muted)" }}>
-                        {formatDate(contact.lastActivity)}
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className="px-2 py-1 rounded-full text-[10px] uppercase"
-                          style={{
-                            background:
-                              contact.status === "clicked"
-                                ? "rgba(59,130,246,0.12)"
-                                : contact.status === "opened"
-                                ? "rgba(43,122,95,0.10)"
-                                : contact.status === "sent"
-                                ? "rgba(217,119,6,0.10)"
-                                : contact.status === "failed"
-                                ? "rgba(239,68,68,0.10)"
-                                : "rgba(100,116,139,0.10)",
-                            color:
-                              contact.status === "clicked"
-                                ? "#3b82f6"
-                                : contact.status === "opened"
-                                ? "var(--wm-accent)"
-                                : contact.status === "sent"
-                                ? "#d97706"
-                                : contact.status === "failed"
-                                ? "#dc2626"
-                                : "#64748b",
-                          }}
-                        >
-                          {contact.status}
-                        </span>
+                </thead>
+                <tbody>
+                  {contacts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-4 px-3" style={{ color: "var(--wm-text-muted)" }}>
+                        No engagement yet. Send a campaign to populate this table.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    contacts.map((contact) => (
+                      <tr
+                        key={contact.contact_id}
+                        style={{ borderTop: "1px solid var(--wm-border)" }}
+                      >
+                        <td className="py-3 pl-3">
+                          <div className="font-medium" style={{ color: "var(--wm-text)" }}>
+                            {contact.name}
+                          </div>
+                          <div className="text-[11px]" style={{ color: "var(--wm-text-muted)" }}>
+                            {contact.email}
+                          </div>
+                        </td>
+                        <td className="py-3" style={{ color: "var(--wm-text-muted)" }}>
+                          {contact.company ?? "—"}
+                        </td>
+                        <td className="py-3" style={{ color: "var(--wm-text)" }}>{contact.sent}</td>
+                        <td className="py-3" style={{ color: "var(--wm-text)" }}>{contact.opened}</td>
+                        <td className="py-3" style={{ color: "var(--wm-text-muted)" }}>
+                          {formatDate(contact.lastActivity)}
+                        </td>
+                        <td className="py-3 pr-3">
+                          <span
+                            className="px-2 py-1 rounded-full text-[10px] uppercase"
+                            style={{
+                              background:
+                                contact.status === "clicked"
+                                  ? "rgba(59,130,246,0.12)"
+                                  : contact.status === "opened"
+                                  ? "rgba(43,122,95,0.10)"
+                                  : contact.status === "sent"
+                                  ? "rgba(217,119,6,0.10)"
+                                  : contact.status === "failed"
+                                  ? "rgba(239,68,68,0.10)"
+                                  : "rgba(100,116,139,0.10)",
+                              color:
+                                contact.status === "clicked"
+                                  ? "#3b82f6"
+                                  : contact.status === "opened"
+                                  ? "var(--wm-accent)"
+                                  : contact.status === "sent"
+                                  ? "#d97706"
+                                  : contact.status === "failed"
+                                  ? "#dc2626"
+                                  : "#64748b",
+                            }}
+                          >
+                            {contact.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -37,7 +37,6 @@ export type EngagementChartProps = {
 const SERIES = [
   { key: "sent", label: "Sent", stroke: "var(--chart-1)", fill: "url(#sent)" },
   { key: "opened", label: "Opened", stroke: "var(--chart-2)", fill: "url(#opened)" },
-  { key: "clicked", label: "Clicked", stroke: "var(--chart-3)", fill: "url(#clicked)" },
   { key: "failed", label: "Failed", stroke: "#f87171", fill: "url(#failed)" },
 ] as const;
 
@@ -54,10 +53,6 @@ export default function EngagementChart({ data, visibleKeys }: EngagementChartPr
             <linearGradient id="opened" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.3} />
               <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0.05} />
-            </linearGradient>
-            <linearGradient id="clicked" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.28} />
-              <stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0.05} />
             </linearGradient>
             <linearGradient id="failed" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#f87171" stopOpacity={0.25} />

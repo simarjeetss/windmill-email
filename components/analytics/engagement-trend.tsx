@@ -8,7 +8,6 @@ import type { TimelinePoint } from "@/lib/analytics/metrics";
 const SERIES_OPTIONS = [
   { key: "sent", label: "Sent", color: "var(--chart-1)" },
   { key: "opened", label: "Opened (est.)", color: "var(--chart-2)" },
-  { key: "clicked", label: "Clicked", color: "var(--chart-3)" },
   { key: "failed", label: "Failed", color: "#f87171" },
 ] as const;
 
@@ -20,7 +19,6 @@ export default function EngagementTrend({ data }: EngagementTrendProps) {
   const [activeKeys, setActiveKeys] = useState<string[]>([
     "sent",
     "opened",
-    "clicked",
   ]);
 
   const visibleKeys = useMemo(() => {

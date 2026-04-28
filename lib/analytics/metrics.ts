@@ -18,6 +18,7 @@ export type SentEmailRow = {
 
 /** Rows from `email_events` for timeline bucketing */
 export type EmailEventTimelineRow = {
+  sent_email_id?: string | null;
   event_type: string;
   occurred_at: string;
   is_suspected_bot: boolean;
@@ -80,9 +81,15 @@ export function parseEventStats(data: unknown): EventStatsBundle | null {
   };
 }
 
-/** Prefer webhook-backed delivered count; fall back to sent rows. */
-export function rateDenominator(sent: number, delivered: number): number {
-  if (delivered > 0) return delivered;
+/**
+ * Prefer explicit delivery telemetry when delivery outcomes are fully accounted
+ * for; otherwise fall back to sent to avoid over-inflating rates during
+ * partial webhook sync.
+ */
+export function rateDenominator(sent: number, deliveredExplicit: number, failed: number): number {
+  if (sent <= 0) return deliveredExplicit > 0 ? deliveredExplicit : 0;
+  const deliveryCoverage = deliveredExplicit + Math.max(0, failed);
+  if (deliveredExplicit > 0 && deliveryCoverage >= sent) return deliveredExplicit;
   return sent;
 }
 
@@ -153,9 +160,12 @@ export function calculateCampaignStats(
   const openedRaw = hasEventData && es ? es.open_unique_raw : legacyOpened;
   const openedTrusted = hasEventData && es ? es.open_unique_trusted : legacyOpened;
   const clicked = hasEventData && es ? es.click_unique : legacyClicked;
-  const delivered = hasEventData && es ? Math.max(es.delivered_unique, legacyDelivered) : Math.max(legacyDelivered, sent);
+  const deliveredExplicit = hasEventData && es ? Math.max(es.delivered_unique, legacyDelivered) : legacyDelivered;
+  // Open/click imply a minimum level of delivery even when explicit delivery webhooks are missing.
+  const deliveredInferred = Math.max(openedRaw, clicked);
+  const delivered = Math.max(deliveredExplicit, deliveredInferred);
 
-  const denom = rateDenominator(sent, delivered);
+  const denom = rateDenominator(sent, deliveredExplicit, failed);
 
   return {
     sent,
@@ -210,14 +220,47 @@ export function buildTimeline(
   });
 
   if (events && events.length > 0) {
-    events.forEach((ev) => {
-      if (ev.event_type === "open" && !ev.is_suspected_bot) {
-        increment(ev.occurred_at, "opened");
+    const hasSentEmailIds = events.some((ev) => Boolean(ev.sent_email_id));
+
+    if (hasSentEmailIds) {
+      const firstOpenByEmail = new Map<string, string>();
+      const firstClickByEmail = new Map<string, string>();
+
+      for (const ev of events) {
+        const sentEmailId = ev.sent_email_id;
+        if (!sentEmailId) continue;
+
+        if (ev.event_type === "open" && !ev.is_suspected_bot) {
+          const prev = firstOpenByEmail.get(sentEmailId);
+          if (!prev || ev.occurred_at < prev) {
+            firstOpenByEmail.set(sentEmailId, ev.occurred_at);
+          }
+        }
+
+        if (ev.event_type === "click") {
+          const prev = firstClickByEmail.get(sentEmailId);
+          if (!prev || ev.occurred_at < prev) {
+            firstClickByEmail.set(sentEmailId, ev.occurred_at);
+          }
+        }
       }
-      if (ev.event_type === "click") {
-        increment(ev.occurred_at, "clicked");
+
+      for (const occurredAt of firstOpenByEmail.values()) {
+        increment(occurredAt, "opened");
       }
-    });
+      for (const occurredAt of firstClickByEmail.values()) {
+        increment(occurredAt, "clicked");
+      }
+    } else {
+      events.forEach((ev) => {
+        if (ev.event_type === "open" && !ev.is_suspected_bot) {
+          increment(ev.occurred_at, "opened");
+        }
+        if (ev.event_type === "click") {
+          increment(ev.occurred_at, "clicked");
+        }
+      });
+    }
   } else {
     rows.forEach((row) => {
       increment(row.opened_at, "opened");

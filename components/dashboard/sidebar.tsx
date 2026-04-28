@@ -56,11 +56,10 @@ export default function DashboardSidebar({ user, profile }: { user: User; profil
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-[220px] shrink-0"
+      className="hidden lg:flex lg:sticky lg:top-0 flex-col w-[220px] shrink-0 h-screen overflow-y-auto self-start"
       style={{
         background: "var(--wm-surface)",
         borderRight: "1px solid var(--wm-border)",
-        minHeight: "100vh",
       }}
     >
       {/* Logo */}
